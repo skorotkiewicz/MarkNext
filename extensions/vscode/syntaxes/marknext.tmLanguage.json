@@ -1,0 +1,414 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "MarkNext",
+  "scopeName": "text.marknext",
+  "fileTypes": [
+    ".mnext",
+    ".mn"
+  ],
+  "patterns": [
+    {
+      "include": "#frontmatter"
+    },
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#code-block"
+    },
+    {
+      "include": "#table"
+    },
+    {
+      "include": "#blockquote"
+    },
+    {
+      "include": "#horizontal-rule"
+    },
+    {
+      "include": "#list"
+    },
+    {
+      "include": "#header"
+    },
+    {
+      "include": "#inline"
+    }
+  ],
+  "repository": {
+    "frontmatter": {
+      "patterns": [
+        {
+          "name": "meta.frontmatter.marknext",
+          "begin": "\\A---\\s*$",
+          "end": "^---\\s*$",
+          "contentName": "source.yaml",
+          "patterns": [
+            {
+              "include": "source.yaml"
+            }
+          ]
+        }
+      ]
+    },
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.percentage.marknext",
+          "match": "^% .*$"
+        }
+      ]
+    },
+    "code-block": {
+      "patterns": [
+        {
+          "name": "markup.fenced_code.block.marknext",
+          "begin": "^(```)",
+          "beginCaptures": {
+            "1": {
+              "name": "punctuation.definition.markdown"
+            }
+          },
+          "end": "^(```)\\s*$",
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.markdown"
+            }
+          },
+          "contentName": "meta.embedded.block",
+          "patterns": [
+            {
+              "begin": "(?<=^```)(\\S+)(\\s+.*)?$",
+              "beginCaptures": {
+                "1": {
+                  "name": "entity.name.function.language-markdown"
+                },
+                "2": {
+                  "name": "string.other.link.description.title.markdown"
+                }
+              },
+              "end": "(?=^```)",
+              "contentName": "source",
+              "patterns": [
+                {
+                  "include": "$self"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "markup.inline.raw.string.marknext",
+          "begin": "(`)",
+          "beginCaptures": {
+            "1": {
+              "name": "punctuation.definition.raw.markdown"
+            }
+          },
+          "end": "(`)",
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.raw.markdown"
+            }
+          },
+          "contentName": "markup.inline.raw.content.marknext"
+        }
+      ]
+    },
+    "table": {
+      "patterns": [
+        {
+          "name": "markup.table.marknext",
+          "begin": "^(\\|)",
+          "beginCaptures": {
+            "1": {
+              "name": "punctuation.definition.table.markdown"
+            }
+          },
+          "end": "\\n",
+          "patterns": [
+            {
+              "include": "#inline"
+            },
+            {
+              "name": "punctuation.separator.table.markdown",
+              "match": "\\|"
+            },
+            {
+              "name": "punctuation.separator.table.alignment.markdown",
+              "match": "[:-]+"
+            }
+          ]
+        }
+      ]
+    },
+    "blockquote": {
+      "patterns": [
+        {
+          "name": "markup.quote.marknext",
+          "begin": "^(>)",
+          "beginCaptures": {
+            "1": {
+              "name": "punctuation.definition.quote.markdown"
+            }
+          },
+          "end": "\\n",
+          "patterns": [
+            {
+              "include": "#inline"
+            }
+          ]
+        }
+      ]
+    },
+    "horizontal-rule": {
+      "patterns": [
+        {
+          "name": "meta.separator.markdown",
+          "match": "^(---|\\*\\*\\*|[\\-_]{3,})\\s*$"
+        }
+      ]
+    },
+    "list": {
+      "patterns": [
+        {
+          "name": "markup.list.unnumbered.markdown",
+          "begin": "^\\s*(\\-)",
+          "beginCaptures": {
+            "1": {
+              "name": "punctuation.definition.list.markdown"
+            }
+          },
+          "end": "\\n",
+          "patterns": [
+            {
+              "include": "#inline"
+            }
+          ]
+        },
+        {
+          "name": "markup.list.numbered.markdown",
+          "begin": "^\\s*(\\d+\\.)",
+          "beginCaptures": {
+            "1": {
+              "name": "punctuation.definition.list.markdown"
+            }
+          },
+          "end": "\\n",
+          "patterns": [
+            {
+              "include": "#inline"
+            }
+          ]
+        }
+      ]
+    },
+    "header": {
+      "patterns": [
+        {
+          "name": "markup.heading.marknext",
+          "match": "^(#{1,6})\\s+(.*)$",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.heading.markdown"
+            },
+            "2": {
+              "name": "entity.name.section.markdown"
+            }
+          }
+        }
+      ]
+    },
+    "inline": {
+      "patterns": [
+        {
+          "include": "#escape"
+        },
+        {
+          "include": "#bold"
+        },
+        {
+          "include": "#italic"
+        },
+        {
+          "include": "#bold-italic"
+        },
+        {
+          "include": "#code-inline"
+        },
+        {
+          "include": "#link"
+        },
+        {
+          "include": "#image"
+        },
+        {
+          "include": "#shortcode"
+        }
+      ]
+    },
+    "escape": {
+      "patterns": [
+        {
+          "name": "constant.character.escape.markdown",
+          "match": "\\\\[\\\\*\\/\\[\\]\\(\\)\\`<>#\\-_\\!]"
+        }
+      ]
+    },
+    "bold": {
+      "name": "markup.bold.markdown",
+      "begin": "(?<![\\*])\\*(?![\\*])",
+      "end": "(?<![\\*])\\*(?![\\*])",
+      "captures": {
+        "0": {
+          "name": "punctuation.definition.bold.markdown"
+        }
+      }
+    },
+    "italic": {
+      "name": "markup.italic.markdown",
+      "begin": "(?<![\\/])\\/(?![\\/])",
+      "end": "(?<![\\/])\\/(?![\\/])",
+      "captures": {
+        "0": {
+          "name": "punctuation.definition.italic.markdown"
+        }
+      }
+    },
+    "bold-italic": {
+      "name": "markup.bold.markup.italic.markdown",
+      "begin": "\\*/(?![\\/\\*])",
+      "end": "(?<![\\/\\*])\\*/",
+      "captures": {
+        "0": {
+          "name": "punctuation.definition.bold-italic.markdown"
+        }
+      }
+    },
+    "code-inline": {
+      "patterns": [
+        {
+          "name": "markup.inline.raw.string.markdown",
+          "begin": "(`)",
+          "beginCaptures": {
+            "1": {
+              "name": "punctuation.definition.raw.markdown"
+            }
+          },
+          "end": "(`)",
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.raw.markdown"
+            }
+          },
+          "contentName": "markup.inline.raw.content.markdown"
+        }
+      ]
+    },
+    "link": {
+      "patterns": [
+        {
+          "name": "markup.underline.link.markdown",
+          "begin": "\\[",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.link.title.begin.markdown"
+            }
+          },
+          "end": "\\]",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.link.title.end.markdown"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#inline"
+            }
+          ]
+        },
+        {
+          "name": "markup.underline.link.markdown",
+          "begin": "(?<=\\])\\(",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.link.destination.begin.markdown"
+            }
+          },
+          "end": "\\)(?=\\s|$|[^\\(])",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.link.destination.end.markdown"
+            }
+          },
+          "contentName": "markup.underline.link.markdown",
+          "patterns": [
+            {
+              "name": "string.other.link.description.title.markdown",
+              "match": "\"[^\"]*\""
+            }
+          ]
+        }
+      ]
+    },
+    "image": {
+      "patterns": [
+        {
+          "name": "markup.image.markdown",
+          "begin": "(!)\\[",
+          "beginCaptures": {
+            "1": {
+              "name": "punctuation.definition.image.begin.markdown"
+            }
+          },
+          "end": "\\](\\([^\\)]*\\))?",
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.image.end.markdown"
+            }
+          },
+          "patterns": [
+            {
+              "contentName": "string.other.link.description.markdown",
+              "match": "[^\\]]+"
+            }
+          ]
+        }
+      ]
+    },
+    "shortcode": {
+      "patterns": [
+        {
+          "name": "meta.tag.shortcode.marknext",
+          "begin": "\\[([a-zA-Z-]+)",
+          "beginCaptures": {
+            "1": {
+              "name": "entity.name.tag.marknext"
+            }
+          },
+          "end": "\\]",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.tag.end.marknext"
+            }
+          },
+          "patterns": [
+            {
+              "name": "entity.other.attribute-name.marknext",
+              "match": "[a-zA-Z-]+(?==)"
+            },
+            {
+              "name": "punctuation.separator.key-value.marknext",
+              "match": "="
+            },
+            {
+              "name": "string.quoted.double.marknext",
+              "begin": "\"",
+              "end": "\""
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
