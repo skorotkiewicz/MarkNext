@@ -1,0 +1,204 @@
+(*
+ * MarkNext Formal Grammar (EBNF)
+ * Version: 1.0.0
+ * 
+ * This is a strict Context-Free Grammar (CFG).
+ * No context-sensitive features are included.
+ *)
+
+(* ========== LEXICAL TOKENS ========== *)
+
+letter       = "a" .. "z" | "A" .. "Z";
+digit        = "0" .. "9";
+space        = " " | "\t";
+newline      = "\n" | "\r\n";
+whitespace   = { space };
+any_char     = ? any Unicode character ?;
+
+(* Special characters *)
+star         = "*";
+slash        = "/";
+backtick     = "`";
+open_bracket = "[";
+close_bracket= "]";
+open_paren   = "(";
+close_paren  = ")";
+exclaim      = "!";
+hash         = "#";
+dash         = "-";
+pipe         = "|";
+greater      = ">";
+backslash    = "\\";
+period       = ".";
+lt           = "<";
+gt           = ">";
+underscore   = "_";
+
+(* ========== DOCUMENT STRUCTURE ========== *)
+
+document     = { blank_line }, { block }, { blank_line }, EOF;
+blank_line   = whitespace, newline;
+EOF          = ? end of input ?;
+
+block        = header
+             | paragraph
+             | list
+             | code_block
+             | blockquote
+             | thematic_break
+             | table;
+
+(* ========== HEADERS ========== *)
+
+header       = header_prefix, whitespace, inline_content, 
+               [ header_suffix ], newline,
+               { blank_line };
+
+header_prefix= h1_prefix | h2_prefix | h3_prefix | h4_prefix | h5_prefix | h6_prefix;
+h1_prefix    = hash;
+h2_prefix    = hash, hash;
+h3_prefix    = hash, hash, hash;
+h4_prefix    = hash, hash, hash, hash;
+h5_prefix    = hash, hash, hash, hash, hash;
+h6_prefix    = hash, hash, hash, hash, hash, hash;
+
+header_suffix= whitespace, closing_hashes;
+closing_hashes= { hash };
+
+(* ========== PARAGRAPHS ========== *)
+
+paragraph    = inline_content, newline, 
+               { inline_content, newline },
+               { blank_line };
+
+inline_content = { inline_element };
+
+inline_element = text_span
+               | bold
+               | italic
+               | code_inline
+               | link
+               | image
+               | line_break
+               | escaped_char;
+
+(* ========== EMPHASIS ========== *)
+
+bold         = star, inline_content, star;
+italic       = slash, inline_content, slash;
+
+(* ========== CODE ========== *)
+
+code_inline  = backtick, code_inline_text, backtick;
+code_inline_text= { any_char - backtick - newline };
+
+code_block   = code_fence, [ language ], newline,
+               code_body,
+               code_fence, newline,
+               { blank_line };
+
+code_fence   = backtick, backtick, backtick;
+language     = letter, { letter | digit | dash | underscore };
+code_body    = { any_char };
+
+(* ========== LISTS ========== *)
+
+list         = list_items, { blank_line };
+list_items   = list_item, { newline, list_item };
+list_item    = list_marker, whitespace, inline_content,
+               [ continuation ],
+               [ sublist ];
+
+list_marker  = unordered_marker | ordered_marker;
+unordered_marker= dash;
+ordered_marker= digit, { digit }, period;
+
+continuation = { newline, indent, inline_content };
+indent       = space, space, { space };
+
+sublist      = newline, indent, list;
+
+(* ========== BLOCKQUOTES ========== *)
+
+blockquote   = blockquote_line, { newline, blockquote_line }, { blank_line };
+blockquote_line= greater, whitespace, block_content;
+block_content= paragraph | list | code_block | header;
+
+(* ========== THEMATIC BREAK ========== *)
+
+thematic_break= dash, dash, dash, { dash }, newline, { blank_line };
+
+(* ========== LINKS AND IMAGES ========== *)
+
+link         = open_bracket, link_text, close_bracket, 
+               open_paren, link_destination, [ link_title ], close_paren;
+
+link_text    = { any_char - close_bracket - newline };
+
+link_destination= link_url | angle_url;
+link_url     = { any_char - space - close_paren - newline };
+angle_url    = lt, link_url, gt;
+
+link_title   = whitespace, dquote, title_text, dquote;
+title_text   = { any_char - dquote - newline };
+dquote       = '"';
+
+image        = exclaim, link;
+
+(* ========== TABLES (EXTENSION) ========== *)
+
+table        = table_header, newline, table_separator, 
+               { newline, table_row },
+               { blank_line };
+
+table_header = pipe, table_cell, { pipe, table_cell }, pipe;
+table_row    = pipe, table_cell, { pipe, table_cell }, pipe;
+table_cell   = whitespace, inline_content, whitespace;
+
+table_separator= pipe, table_align, { pipe, table_align }, pipe;
+table_align  = whitespace, align_marker, whitespace;
+align_marker = dash, { dash }
+             | colon, dash, { dash }
+             | dash, { dash }, colon
+             | colon, dash, { dash }, colon;
+
+(* ========== TEXT SPANS ========== *)
+
+text_span    = { text_char };
+text_char    = any_char 
+             - star 
+             - slash 
+             - backtick 
+             - open_bracket 
+             - close_bracket 
+             - exclaim 
+             - newline;
+
+(* ========== ESCAPES ========== *)
+
+escaped_char = backslash, escapable;
+escapable    = backslash | star | slash | backtick 
+             | open_bracket | close_bracket 
+             | open_paren | close_paren 
+             | exclaim | hash | dash 
+             | greater | pipe | lt | gt;
+
+(* ========== LINE BREAKS ========== *)
+
+line_break   = backslash, newline;
+
+(* ========== SHORTCODES (EXTENSION) ========== *)
+
+shortcode    = open_bracket, shortcode_name, 
+               { whitespace, shortcode_param }, 
+               close_bracket;
+
+shortcode_name= letter, { letter | digit | dash };
+shortcode_param= param_name, equals, param_value;
+param_name   = letter, { letter | digit | dash };
+param_value  = dquote, { any_char - dquote - newline }, dquote;
+
+(* ========== WHITESPACE HANDLING ========== *)
+
+(* Leading/trailing whitespace on lines is ignored except where noted *)
+(* Multiple blank lines collapse to one paragraph break *)
