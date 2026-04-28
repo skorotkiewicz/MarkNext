@@ -1,4 +1,4 @@
-import {
+import type {
   Node, Document, Block, Header, Paragraph, List, ListItem,
   CodeBlock, Blockquote, ThematicBreak, Table, TableRow, TableCell,
   Inline, Text, Bold, Italic, Code, Link, Image, LineBreak, Escape
@@ -91,7 +91,7 @@ export class HTMLRenderer {
 
   private renderListItem(item: ListItem): string {
     const content = item.children.map(child => {
-      if (child.type === 'Header' || child.type === 'Paragraph' || child.type === 'List' || 
+      if (child.type === 'Header' || child.type === 'Paragraph' || child.type === 'List' ||
           child.type === 'CodeBlock' || child.type === 'Blockquote' || child.type === 'Table') {
         return this.render(child);
       } else {
@@ -211,22 +211,22 @@ export class HTMLRenderer {
     const parts = html.split(separator);
     let result = '';
     let depth = 0;
-    
+
     for (let i = 0; i < parts.length; i++) {
-      let line = parts[i];
+      let line = parts[i]!;
       if (i > 0) line = '<' + line;
       if (i < parts.length - 1) line = line + '>';
-      
+
       if (line.match(/^<\/\w/)) depth--;
       if (depth < 0) depth = 0;
-      
+
       if (line.trim()) {
         result += '  '.repeat(depth) + line + '\n';
       }
-      
+
       if (line.match(/^<\w[^>]*>[^<]*$/) && !line.match(/\/$/)) depth++;
     }
-    
+
     return result;
   }
 }

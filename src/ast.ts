@@ -21,14 +21,12 @@ export type NodeType =
   | 'LineBreak'
   | 'Escape';
 
-export interface Position {
-  line: number;
-  column: number;
-}
+// Re-export Position from tokens.ts to avoid duplication
+export type { Position } from './tokens';
 
 export interface Node {
   type: NodeType;
-  position?: Position;
+  position?: import('./tokens').Position;
 }
 
 // Block-level nodes

@@ -1,4 +1,5 @@
-import { Token, TokenType, Position, isCodeFence, isThematicBreak } from './tokens';
+import { TokenType, isCodeFence, isThematicBreak } from './tokens';
+import type { Token, Position } from './tokens';
 
 export class Lexer {
   private input: string;
@@ -17,7 +18,7 @@ export class Lexer {
       if (this.column === 1) {
         this.skipWhitespace();
       }
-      
+
       if (this.isAtEnd()) break;
 
       const char = this.peek();
@@ -43,13 +44,13 @@ export class Lexer {
           this.readNewline();
           this.addToken(TokenType.NEWLINE, '\n', startPos);
           continue;
-        
+
         case ' ':
         case '\t':
           this.advance();
           this.addToken(TokenType.SPACE, char, startPos);
           continue;
-        
+
         case '#':
           const hashes = this.readWhile(c => c === '#');
           if (hashes.length <= 6) {
@@ -58,92 +59,92 @@ export class Lexer {
             this.addToken(TokenType.TEXT, hashes, startPos);
           }
           continue;
-        
+
         case '-':
           this.advance();
           this.addToken(TokenType.DASH, '-', startPos);
           continue;
-        
+
         case '*':
           this.advance();
           this.addToken(TokenType.STAR, '*', startPos);
           continue;
-        
+
         case '/':
           this.advance();
           this.addToken(TokenType.SLASH, '/', startPos);
           continue;
-        
+
         case '`':
           this.advance();
           this.addToken(TokenType.BACKTICK, '`', startPos);
           continue;
-        
+
         case '[':
           this.advance();
           this.addToken(TokenType.LBRACKET, '[', startPos);
           continue;
-        
+
         case ']':
           this.advance();
           this.addToken(TokenType.RBRACKET, ']', startPos);
           continue;
-        
+
         case '(':
           this.advance();
           this.addToken(TokenType.LPAREN, '(', startPos);
           continue;
-        
+
         case ')':
           this.advance();
           this.addToken(TokenType.RPAREN, ')', startPos);
           continue;
-        
+
         case '!':
           this.advance();
           this.addToken(TokenType.EXCLAIM, '!', startPos);
           continue;
-        
+
         case '>':
           this.advance();
           this.addToken(TokenType.GT, '>', startPos);
           continue;
-        
+
         case '|':
           this.advance();
           this.addToken(TokenType.PIPE, '|', startPos);
           continue;
-        
+
         case '\\':
           this.advance();
           this.addToken(TokenType.BACKSLASH, '\\', startPos);
           continue;
-        
+
         case '.':
           this.advance();
           this.addToken(TokenType.PERIOD, '.', startPos);
           continue;
-        
+
         case '<':
           this.advance();
           this.addToken(TokenType.LT, '<', startPos);
           continue;
-        
+
         case '_':
           this.advance();
           this.addToken(TokenType.UNDERSCORE, '_', startPos);
           continue;
-        
+
         case ':':
           this.advance();
           this.addToken(TokenType.COLON, ':', startPos);
           continue;
-        
+
         case '=':
           this.advance();
           this.addToken(TokenType.EQUALS, '=', startPos);
           continue;
-        
+
         case '"':
           this.advance();
           this.addToken(TokenType.DQUOTE, '"', startPos);
@@ -176,16 +177,16 @@ export class Lexer {
 
   private peek(): string {
     if (this.isAtEnd()) return '\0';
-    return this.input[this.position];
+    return this.input[this.position]!;
   }
 
   private peekNext(): string {
     if (this.position + 1 >= this.input.length) return '\0';
-    return this.input[this.position + 1];
+    return this.input[this.position + 1]!;
   }
 
   private advance(): string {
-    const char = this.input[this.position];
+    const char = this.input[this.position]!;
     this.position++;
     if (char === '\n') {
       this.line++;
@@ -243,7 +244,7 @@ export class Lexer {
       '\n', '\r', ' ', '\t', '#', '-', '*', '/', '`', '[', ']',
       '(', ')', '!', '>', '|', '\\', '.', '<', '_', ':', '=', '"'
     ]);
-    
+
     while (!this.isAtEnd() && !specialChars.has(this.peek())) {
       result += this.advance();
     }

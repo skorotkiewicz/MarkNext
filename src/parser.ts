@@ -1,5 +1,6 @@
-import { Token, TokenType } from './tokens';
-import {
+import { TokenType } from './tokens';
+import type { Token } from './tokens';
+import type {
   Node, Document, Block, Header, Paragraph, List, ListItem,
   CodeBlock, Blockquote, ThematicBreak, Table, TableRow, TableCell,
   Inline, Text, Bold, Italic, Code, Link, Image, LineBreak, Escape
@@ -22,9 +23,9 @@ export class Parser {
 
   parse(): Document {
     const blocks: Block[] = [];
-    
+
     this.skipBlankLines();
-    
+
     while (!this.isAtEnd()) {
       const block = this.parseBlock();
       if (block) {
@@ -57,7 +58,7 @@ export class Parser {
 
   private advance(): Token {
     if (!this.isAtEnd()) this.position++;
-    return this.tokens[this.position - 1];
+    return this.tokens[this.position - 1] || { type: TokenType.EOF, value: '', position: { line: 0, column: 0, offset: 0 } };
   }
 
   private check(type: TokenType): boolean {
@@ -130,39 +131,39 @@ export class Parser {
   private parseHeader(): Header | Paragraph {
     const hashes = this.advance();
     const level = hashes.value.length as 1 | 2 | 3 | 4 | 5 | 6;
-    
+
     // Must have space after hashes
     if (!this.check(TokenType.SPACE)) {
       // Not a valid header, treat as paragraph
       this.position--; // backtrack
       return this.parseParagraph();
     }
-    
+
     this.advance(); // consume space
-    
+
     const children = this.parseInlineUntilNewline();
-    
+
     // Optional closing hashes
     this.skipSpaces();
     if (this.check(TokenType.HASH)) {
       this.advance(); // consume closing hashes
     }
-    
+
     return { type: 'Header', level, children };
   }
 
   private parseCodeBlock(): CodeBlock {
     this.advance(); // consume ```
-    
+
     let language: string | undefined;
-    
+
     // Check for language identifier
     if (this.check(TokenType.TEXT)) {
       language = this.advance().value;
     }
-    
+
     this.expectNewline();
-    
+
     // Read code content until closing ```
     let content = '';
     while (!this.isAtEnd() && !this.check(TokenType.CODE_FENCE)) {
@@ -173,30 +174,30 @@ export class Parser {
         content += this.advance().value;
       }
     }
-    
+
     // Remove trailing newline if present
     if (content.endsWith('\n')) {
       content = content.slice(0, -1);
     }
-    
+
     if (this.check(TokenType.CODE_FENCE)) {
       this.advance(); // consume closing ```
     }
-    
+
     return { type: 'CodeBlock', language, content };
   }
 
   private parseBlockquote(): Blockquote {
     const blocks: Block[] = [];
-    
+
     while (this.check(TokenType.GT)) {
       this.advance(); // consume >
-      
+
       // Optional space after >
       if (this.check(TokenType.SPACE)) {
         this.advance();
       }
-      
+
       // Parse the block content
       if (!this.check(TokenType.NEWLINE)) {
         const block = this.parseBlock();
@@ -204,7 +205,7 @@ export class Parser {
           blocks.push(block);
         }
       }
-      
+
       // Check for continuation
       if (this.check(TokenType.NEWLINE)) {
         this.advance();
@@ -213,20 +214,20 @@ export class Parser {
         }
       }
     }
-    
+
     return { type: 'Blockquote', children: blocks };
   }
 
   private parseList(): List {
     const items: ListItem[] = [];
     const ordered = this.isOrderedListMarker();
-    
+
     while (true) {
       const item = this.parseListItem(ordered);
       if (item) {
         items.push(item);
       }
-      
+
       // Check for next item
       if (ordered && this.isOrderedListMarker()) {
         continue;
@@ -236,7 +237,7 @@ export class Parser {
         break;
       }
     }
-    
+
     return { type: 'List', ordered, children: items };
   }
 
@@ -248,15 +249,15 @@ export class Parser {
     } else {
       this.advance(); // -
     }
-    
+
     // Must have space after marker
     if (!this.check(TokenType.SPACE)) {
       return null;
     }
     this.advance();
-    
+
     const children: (Block | Inline)[] = [];
-    
+
     // Parse content until next list item or end
     while (!this.isAtEnd() && !this.check(TokenType.NEWLINE)) {
       const inline = this.parseInline();
@@ -264,71 +265,71 @@ export class Parser {
         children.push(inline);
       }
     }
-    
+
     // Handle continuation lines (indented content)
     if (this.check(TokenType.NEWLINE)) {
       this.advance();
-      
+
       // Check for nested list or continuation
       while (this.check(TokenType.SPACE) && this.checkNextIndent()) {
         // Continuation of this item
         this.advance(); this.advance(); // consume indent
-        
+
         if (this.check(TokenType.NEWLINE)) {
           this.advance();
           continue;
         }
-        
+
         // More content
         while (!this.isAtEnd() && !this.check(TokenType.NEWLINE)) {
           const inline = this.parseInline();
           if (inline) children.push(inline);
         }
-        
+
         if (this.check(TokenType.NEWLINE)) {
           this.advance();
         }
       }
     }
-    
+
     return { type: 'ListItem', children };
   }
 
   private parseParagraph(): Paragraph {
     const children: Inline[] = [];
-    
+
     while (!this.isAtEnd() && !this.check(TokenType.NEWLINE)) {
       const inline = this.parseInline();
       if (inline) {
         children.push(inline);
       }
     }
-    
+
     // Consume newline if present
     if (this.check(TokenType.NEWLINE)) {
       this.advance();
     }
-    
+
     // Continue paragraph if next line isn't a block element
     while (!this.isAtEnd() && !this.isBlockStart()) {
       // Add space between lines if needed
       if (children.length > 0) {
-        const last = children[children.length - 1];
-        if (last.type === 'Text' && !last.value.endsWith(' ')) {
-          last.value += ' ';
+        const last = children[children.length - 1]!;
+        if (last.type === 'Text' && !(last as Text).value.endsWith(' ')) {
+          (last as Text).value += ' ';
         }
       }
-      
+
       while (!this.isAtEnd() && !this.check(TokenType.NEWLINE)) {
         const inline = this.parseInline();
         if (inline) children.push(inline);
       }
-      
+
       if (this.check(TokenType.NEWLINE)) {
         this.advance();
       }
     }
-    
+
     return { type: 'Paragraph', children };
   }
 
@@ -373,22 +374,22 @@ export class Parser {
     }
 
     // Text content (including < and > which are text in most contexts)
-    if (token.type === TokenType.TEXT || 
+    if (token.type === TokenType.TEXT ||
         token.type === TokenType.SPACE ||
         token.type === TokenType.LT ||
         token.type === TokenType.GT ||
         token.type === TokenType.GT_SYMBOL) {
       let value = '';
-      
+
       // Concatenate consecutive text-like tokens
-      while (this.check(TokenType.TEXT) || 
+      while (this.check(TokenType.TEXT) ||
              this.check(TokenType.SPACE) ||
              this.check(TokenType.LT) ||
              this.check(TokenType.GT) ||
              this.check(TokenType.GT_SYMBOL)) {
         value += this.advance().value;
       }
-      
+
       if (value.length > 0) {
         return { type: 'Text', value };
       }
@@ -402,81 +403,81 @@ export class Parser {
     return null;
   }
 
-  private parseBold(): Bold | null {
+  private parseBold(): Bold | Text {
     this.advance(); // consume *
-    
+
     const children: Inline[] = [];
     while (!this.isAtEnd() && !this.check(TokenType.STAR)) {
       const inline = this.parseInline();
       if (inline) children.push(inline);
     }
-    
+
     if (this.check(TokenType.STAR)) {
       this.advance(); // consume closing *
       return { type: 'Bold', children };
     }
-    
+
     // Unclosed bold - treat as text
     return { type: 'Text', value: '*' + children.map(c => this.inlineToText(c)).join('') };
   }
 
-  private parseItalic(): Italic | null {
+  private parseItalic(): Italic | Text {
     this.advance(); // consume /
-    
+
     const children: Inline[] = [];
     while (!this.isAtEnd() && !this.check(TokenType.SLASH)) {
       const inline = this.parseInline();
       if (inline) children.push(inline);
     }
-    
+
     if (this.check(TokenType.SLASH)) {
       this.advance(); // consume closing /
       return { type: 'Italic', children };
     }
-    
+
     // Unclosed italic - treat as text
     return { type: 'Text', value: '/' + children.map(c => this.inlineToText(c)).join('') };
   }
 
   private parseCode(): Code {
     this.advance(); // consume `
-    
+
     let value = '';
     while (!this.isAtEnd() && !this.check(TokenType.BACKTICK) && !this.check(TokenType.NEWLINE)) {
       value += this.advance().value;
     }
-    
+
     if (this.check(TokenType.BACKTICK)) {
       this.advance(); // consume closing `
     }
-    
+
     return { type: 'Code', value };
   }
 
-  private parseLink(): Link | null {
+  private parseLink(): Link | Text {
     this.advance(); // consume [
-    
+
     // Parse link text
     const textChildren: Inline[] = [];
     while (!this.isAtEnd() && !this.check(TokenType.RBRACKET)) {
       const inline = this.parseInline();
       if (inline) textChildren.push(inline);
     }
-    
+
     if (!this.check(TokenType.RBRACKET)) {
       return { type: 'Text', value: '[' + textChildren.map(c => this.inlineToText(c)).join('') };
     }
     this.advance(); // consume ]
-    
+
     if (!this.check(TokenType.LPAREN)) {
       return { type: 'Text', value: '[' + textChildren.map(c => this.inlineToText(c)).join('') + ']' };
     }
     this.advance(); // consume (
-    
+
     // Parse URL
     let url = '';
     let title: string | undefined;
-    
+
     // Handle <url> format
     if (this.check(TokenType.LT)) {
       this.advance();
@@ -492,7 +493,7 @@ export class Parser {
         url += this.advance().value;
       }
     }
-    
+
     // Parse optional title: "title"
     if (this.check(TokenType.SPACE)) {
       this.advance();
@@ -507,38 +508,38 @@ export class Parser {
         }
       }
     }
-    
+
     if (this.check(TokenType.RPAREN)) {
       this.advance();
     }
-    
+
     return { type: 'Link', url, title, children: textChildren };
   }
 
-  private parseImage(): Image | null {
+  private parseImage(): Image | Text {
     this.advance(); // consume !
     this.advance(); // consume [
-    
+
     // Parse alt text
     let alt = '';
     while (!this.isAtEnd() && !this.check(TokenType.RBRACKET)) {
       alt += this.advance().value;
     }
-    
+
     if (!this.check(TokenType.RBRACKET)) {
       return { type: 'Text', value: '![' + alt };
     }
     this.advance(); // consume ]
-    
+
     if (!this.check(TokenType.LPAREN)) {
       return { type: 'Text', value: '![' + alt + ']' };
     }
     this.advance(); // consume (
-    
+
     // Parse URL
     let url = '';
     let title: string | undefined;
-    
+
     if (this.check(TokenType.LT)) {
       this.advance();
       while (!this.isAtEnd() && !this.check(TokenType.GT_SYMBOL) && !this.check(TokenType.GT)) {
@@ -552,7 +553,7 @@ export class Parser {
         url += this.advance().value;
       }
     }
-    
+
     // Parse optional title
     if (this.check(TokenType.SPACE)) {
       this.advance();
@@ -567,21 +568,21 @@ export class Parser {
         }
       }
     }
-    
+
     if (this.check(TokenType.RPAREN)) {
       this.advance();
     }
-    
+
     return { type: 'Image', url, alt, title };
   }
 
   private parseEscape(): Escape | Text {
     this.advance(); // consume \
-    
+
     if (this.isAtEnd()) {
       return { type: 'Text', value: '\\' };
     }
-    
+
     const char = this.advance().value;
     return { type: 'Escape', char };
   }
@@ -589,10 +590,10 @@ export class Parser {
   private parseTable(): Table {
     // Simple table parsing - can be expanded
     const rows: TableRow[] = [];
-    
+
     // Header row
     rows.push(this.parseTableRow());
-    
+
     // Separator row (skip)
     if (this.check(TokenType.PIPE)) {
       while (!this.isAtEnd() && !this.check(TokenType.NEWLINE)) {
@@ -602,12 +603,12 @@ export class Parser {
         this.advance();
       }
     }
-    
+
     // Data rows
     while (this.check(TokenType.PIPE)) {
       rows.push(this.parseTableRow());
     }
-    
+
     return {
       type: 'Table',
       header: rows[0] || { type: 'TableRow', cells: [] },
@@ -617,33 +618,33 @@ export class Parser {
 
   private parseTableRow(): TableRow {
     const cells: TableCell[] = [];
-    
+
     this.advance(); // consume |
-    
+
     while (!this.isAtEnd() && !this.check(TokenType.NEWLINE)) {
       // Skip leading space
       if (this.check(TokenType.SPACE)) {
         this.advance();
       }
-      
+
       // Parse cell content
       const content: Inline[] = [];
       while (!this.isAtEnd() && !this.check(TokenType.PIPE) && !this.check(TokenType.NEWLINE)) {
         const inline = this.parseInline();
         if (inline) content.push(inline);
       }
-      
+
       cells.push({ type: 'TableCell', children: content });
-      
+
       if (this.check(TokenType.PIPE)) {
         this.advance();
       }
     }
-    
+
     if (this.check(TokenType.NEWLINE)) {
       this.advance();
     }
-    
+
     return { type: 'TableRow', cells };
   }
 
@@ -681,31 +682,31 @@ export class Parser {
     // Check if this looks like a table header row
     // Must have | at start and structure like | a | b |
     if (!this.check(TokenType.PIPE)) return false;
-    
+
     // Look ahead for separator row pattern
     let pos = this.position;
     let foundPipe = false;
-    
+
     // Skip current line
-    while (pos < this.tokens.length && this.tokens[pos].type !== TokenType.NEWLINE) {
-      if (this.tokens[pos].type === TokenType.PIPE) foundPipe = true;
+    while (pos < this.tokens.length && this.tokens[pos]!.type !== TokenType.NEWLINE) {
+      if (this.tokens[pos]!.type === TokenType.PIPE) foundPipe = true;
       pos++;
     }
-    
+
     if (!foundPipe) return false;
-    
+
     // Check next line for separator |---|---|
     pos++; // skip newline
     if (pos >= this.tokens.length) return false;
-    
-    if (this.tokens[pos].type !== TokenType.PIPE) return false;
-    
+
+    if (this.tokens[pos]!.type !== TokenType.PIPE) return false;
+
     // Look for dashes in next line
-    while (pos < this.tokens.length && this.tokens[pos].type !== TokenType.NEWLINE) {
-      if (this.tokens[pos].type === TokenType.DASH) return true;
+    while (pos < this.tokens.length && this.tokens[pos]!.type !== TokenType.NEWLINE) {
+      if (this.tokens[pos]!.type === TokenType.DASH) return true;
       pos++;
     }
-    
+
     return false;
   }
 

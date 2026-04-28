@@ -4,31 +4,31 @@
 export enum TokenType {
   // End of file
   EOF = 'EOF',
-  
+
   // Whitespace
   NEWLINE = 'NEWLINE',
   SPACE = 'SPACE',
-  
+
   // Structure
   HASH = 'HASH',           // #
   DASH = 'DASH',           // -
   PIPE = 'PIPE',           // |
   GT = 'GT',               // >
-  
+
   // Emphasis
   STAR = 'STAR',           // *
   SLASH = 'SLASH',         // /
-  
+
   // Code
   BACKTICK = 'BACKTICK',   // `
-  
+
   // Links
   LBRACKET = 'LBRACKET',   // [
   RBRACKET = 'RBRACKET',   // ]
   LPAREN = 'LPAREN',       // (
   RPAREN = 'RPAREN',       // )
   EXCLAIM = 'EXCLAIM',     // !
-  
+
   // Misc
   BACKSLASH = 'BACKSLASH', // \
   PERIOD = 'PERIOD',       // .
@@ -38,11 +38,11 @@ export enum TokenType {
   COLON = 'COLON',         // :
   EQUALS = 'EQUALS',       // =
   DQUOTE = 'DQUOTE',       // "
-  
+
   // Content
   TEXT = 'TEXT',           // Any text content
   CODE_TEXT = 'CODE_TEXT', // Content inside code blocks
-  
+
   // Special sequences
   CODE_FENCE = 'CODE_FENCE',      // ```
   THEMATIC_BREAK = 'THEMATIC_BREAK', // ---

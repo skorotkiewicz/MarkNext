@@ -8,26 +8,34 @@
   "type": "module",
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
     },
     "./package.json": "./package.json"
   },
   "files": [
-    "dist",
+    "dist/**/*",
     "MARKNEXT_SPEC.md",
     "QUICKREF.md",
     "README.md"
   ],
   "scripts": {
-    "build": "bun build ./src/index.ts --outdir ./dist --target node",
-    "build:types": "tsc --declaration --emitDeclarationOnly --outDir ./dist",
+    "build": "bun run build:clean && bun run build:esm && bun run build:cjs && bun run build:types",
+    "build:clean": "rm -rf dist && mkdir -p dist",
+    "build:esm": "bun build ./src/index.ts --outfile ./dist/index.mjs --format esm --target node",
+    "build:cjs": "bun build ./src/index.ts --outfile ./dist/index.js --format cjs --target node",
+    "build:types": "tsc --declaration --emitDeclarationOnly",
     "test": "bun test",
     "test:watch": "bun test --watch",
     "dev": "bun run index.ts",
     "compile": "bun run src/index.ts",
-    "lint": "tsc --noEmit",
+    "lint": "tsc --noEmit --skipLibCheck",
     "clean": "rm -rf dist"
   },
   "keywords": [
