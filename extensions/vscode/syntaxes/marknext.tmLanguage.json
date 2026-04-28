@@ -17,6 +17,12 @@
       "include": "#code-block"
     },
     {
+      "include": "#math-block"
+    },
+    {
+      "include": "#footnote-def"
+    },
+    {
       "include": "#table"
     },
     {
@@ -225,6 +231,12 @@
           "include": "#escape"
         },
         {
+          "include": "#footnote-ref"
+        },
+        {
+          "include": "#math-inline"
+        },
+        {
           "include": "#bold"
         },
         {
@@ -251,7 +263,39 @@
       "patterns": [
         {
           "name": "constant.character.escape.markdown",
-          "match": "\\\\[\\\\*\\/\\[\\]\\(\\)\\`<>#\\-_\\!]"
+          "match": "\\\\[\\\\*\\/\\[\\]\\(\\)\\`<>#\\-_\\!\\^$]"
+        }
+      ]
+    },
+    "footnote-ref": {
+      "patterns": [
+        {
+          "name": "meta.footnote.reference.marknext",
+          "match": "\\[\\^([^\\]]+)\\]",
+          "captures": {
+            "0": {
+              "name": "punctuation.definition.footnote.markdown"
+            },
+            "1": {
+              "name": "constant.numeric.footnote-id.markdown"
+            }
+          }
+        }
+      ]
+    },
+    "math-inline": {
+      "patterns": [
+        {
+          "name": "markup.math.inline.marknext",
+          "match": "\\$([^\\$\\n]+)\\$",
+          "captures": {
+            "0": {
+              "name": "punctuation.definition.math.markdown"
+            },
+            "1": {
+              "name": "string.other.math.content.markdown"
+            }
+          }
         }
       ]
     },
@@ -407,6 +451,45 @@
               "end": "\""
             }
           ]
+        }
+      ]
+    },
+    "math-block": {
+      "patterns": [
+        {
+          "name": "markup.math.block.marknext",
+          "begin": "^\\$\\$",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.math.block.markdown"
+            }
+          },
+          "end": "^\\$\\$",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.math.block.markdown"
+            }
+          },
+          "contentName": "string.other.math.content.markdown"
+        }
+      ]
+    },
+    "footnote-def": {
+      "patterns": [
+        {
+          "name": "meta.footnote.definition.marknext",
+          "match": "^(\\[\\^([^\\]]+)\\]:)(.*)$",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.footnote.markdown"
+            },
+            "2": {
+              "name": "constant.numeric.footnote-id.markdown"
+            },
+            "3": {
+              "name": "string.other.footnote-content.markdown"
+            }
+          }
         }
       ]
     }

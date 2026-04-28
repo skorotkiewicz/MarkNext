@@ -1,0 +1,49 @@
+# MarkNext Extensions Demo
+
+## Footnotes
+
+This is a paragraph with a footnote[^1] and another[^2].
+
+[^1]: This is the first footnote.
+[^2]: This is the second footnote with /italic/ and *bold* text.
+
+## Math
+
+Inline math: $E = mc^2$ or $a^2 + b^2 = c^2$
+
+Display math:
+$$
+\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
+$$
+
+Multi-line math:
+$$
+f(x) = \sum_{n=0}^{\infty} \frac{f^{(n)}(a)}{n!}(x-a)^n
+$$
+
+## Combined Example
+
+The Pythagorean theorem[^3] states that $a^2 + b^2 = c^2$.
+
+[^3]: In a right triangle, the square of the hypotenuse equals the sum of squares of the other two sides.
+
+## Tables
+
+| Function | Derivative | Integral |
+|:---------|:-----------|:---------|
+| $x^n$ | $nx^{n-1}$ | $\frac{x^{n+1}}{n+1}$ |
+| $e^x$ | $e^x$ | $e^x$ |
+| $\sin x$ | $\cos x$ | $-\cos x$ |
+
+## Code with Math Comments
+
+```python
+# Calculate area of circle: $A = \pi r^2$
+def circle_area(radius):
+    import math
+    return math.pi * radius ** 2
+```
+
+---
+
+*Rendered with MarkNext!*

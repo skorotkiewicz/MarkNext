@@ -5,8 +5,9 @@ Syntax highlighting for MarkNext in Zed editor.
 ## Features
 
 - Full syntax highlighting for MarkNext files
-- Bracket auto-closing for `[]`, `()`, ```` ``` ````, `` ` ``, `*`, `/`
+- Bracket auto-closing for `[]`, `()`, ```` ``` ````, `` ` ``, `*`, `/`, `[^`, `$$`
 - Support for `.mnext` and `.mn` file extensions
+- Footnotes and math expression highlighting
 
 ## Installation
 
@@ -39,6 +40,12 @@ Syntax highlighting for MarkNext in Zed editor.
 ### Links & Images
 - Link: `[text](url)`
 - Image: `![alt](url)`
+
+### Footnotes & Math
+- Footnote reference: `[^1]`
+- Footnote definition: `[^1]: Note text`
+- Inline math: `$E=mc^2$`
+- Math block: `$$...$$`
 
 ### Other
 - Headers: `#` through `######`

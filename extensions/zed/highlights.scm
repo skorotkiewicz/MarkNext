@@ -54,6 +54,16 @@
 ;; Horizontal rule
 (thematic_break) @markup.rule
 
+;; Footnotes
+(footnote) @markup.footnote
+(footnote_reference) @markup.footnote.reference
+(footnote_definition) @markup.footnote.definition
+
+;; Math
+(math) @markup.math
+(math_inline) @markup.math.inline
+(math_block) @markup.math.block
+
 ;; Shortcodes - [tag attr="value"]
 (shortcode) @tag
 (shortcode_name) @tag.name
@@ -77,6 +87,8 @@
 "|" @punctuation.delimiter
 "-" @punctuation.bullet
 ">" @punctuation.quote
+"^" @punctuation.special
+"$" @punctuation.special
 
 ;; Comments
 (comment) @comment

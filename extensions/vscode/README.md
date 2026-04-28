@@ -14,6 +14,8 @@ Syntax highlighting and preview support for MarkNext files.
   - Images (`![alt](url)`)
   - Tables (pipe syntax)
   - Blockquotes (`>`)
+  - **Footnotes** (`[^1]` references and `[^1]: definition`)
+  - **Math** (`$...$` inline and `$$...$$` block)
   - Shortcodes (`[tag attr="value"]`)
 
 - **Live Preview**: Press `Cmd+Shift+V` (Mac) or `Ctrl+Shift+V` (Windows/Linux) to open a preview panel
