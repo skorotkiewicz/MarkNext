@@ -171,7 +171,7 @@
       "patterns": [
         {
           "name": "meta.separator.markdown",
-          "match": "^(---|\\*\\*\\*|[\\-_]{3,})\\s*$"
+          "match": "^(-{3,})\\s*$"
         }
       ]
     },
@@ -256,6 +256,12 @@
         },
         {
           "include": "#shortcode"
+        },
+        {
+          "include": "#auto-link"
+        },
+        {
+          "include": "#line-break"
         }
       ]
     },
@@ -263,7 +269,7 @@
       "patterns": [
         {
           "name": "constant.character.escape.markdown",
-          "match": "\\\\[\\\\*\\/\\[\\]\\(\\)\\`<>#\\-_\\!\\^$]"
+          "match": "\\\\[\\\\*/\\[\\]\\(\\)`<>#\\-_\\!\\^$\":=|]"
         }
       ]
     },
@@ -488,6 +494,41 @@
             },
             "3": {
               "name": "string.other.footnote-content.markdown"
+            }
+          }
+        }
+      ]
+    },
+    "auto-link": {
+      "patterns": [
+        {
+          "name": "markup.underline.link.auto.marknext",
+          "match": "<(https?://[^>]+)>",
+          "captures": {
+            "0": {
+              "name": "markup.underline.link.markdown"
+            }
+          }
+        },
+        {
+          "name": "markup.underline.link.auto.marknext",
+          "match": "<(mailto:[^>]+)>",
+          "captures": {
+            "0": {
+              "name": "markup.underline.link.markdown"
+            }
+          }
+        }
+      ]
+    },
+    "line-break": {
+      "patterns": [
+        {
+          "name": "meta.linebreak.marknext",
+          "match": "\\\\$",
+          "captures": {
+            "0": {
+              "name": "punctuation.definition.linebreak.markdown"
             }
           }
         }

@@ -73,6 +73,12 @@
 ;; Escape sequences
 (escape_sequence) @character.escape
 
+;; Auto-links - <https://...>
+(auto_link) @markup.link.url
+
+;; Line breaks - \
+(line_break) @punctuation.special
+
 ;; Punctuation
 "[" @punctuation.bracket
 "]" @punctuation.bracket
