@@ -1,23 +1,33 @@
 {
   "name": "marknext",
   "displayName": "MarkNext",
-  "description": "Syntax highlighting for MarkNext - a minimal, unambiguous, and secure Markdown successor",
-  "version": "1.0.0",
+  "description": "Syntax highlighting and live preview for MarkNext - a minimal, unambiguous, and secure Markdown successor",
+  "version": "1.0.3",
   "publisher": "marknext",
+  "license": "MIT",
   "engines": {
-    "vscode": "^1.60.0"
+    "vscode": "^1.74.0"
   },
   "categories": [
     "Programming Languages",
-    "Formatters"
+    "Formatters",
+    "Visualization"
   ],
   "keywords": [
     "marknext",
     "markdown",
     "markup",
-    "documentation"
+    "documentation",
+    "preview"
   ],
-  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/skorotkiewicz/marknext"
+  },
+  "bugs": {
+    "url": "https://github.com/skorotkiewicz/marknext/issues"
+  },
+  "homepage": "https://github.com/skorotkiewicz/marknext#readme",
   "activationEvents": [
     "onLanguage:marknext"
   ],
@@ -34,7 +44,11 @@
           ".mnext",
           ".mn"
         ],
-        "configuration": "./language-configuration.json"
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/icon-light.svg",
+          "dark": "./icons/icon-dark.svg"
+        }
       }
     ],
     "grammars": [
@@ -48,7 +62,9 @@
           "meta.embedded.block.python": "python",
           "meta.embedded.block.rust": "rust",
           "meta.embedded.block.css": "css",
-          "meta.embedded.block.html": "html"
+          "meta.embedded.block.json": "json",
+          "meta.embedded.block.toml": "toml",
+          "meta.embedded.block.yaml": "yaml"
         }
       }
     ],
@@ -59,7 +75,22 @@
         "marknext.preview.enable": {
           "type": "boolean",
           "default": true,
-          "description": "Enable MarkNext preview"
+          "description": "Enable MarkNext live preview"
+        },
+        "marknext.preview.compatibility": {
+          "type": "string",
+          "enum": [
+            "strict",
+            "warn",
+            "legacy"
+          ],
+          "default": "strict",
+          "description": "Compatibility mode for parsing MarkNext documents"
+        },
+        "marknext.preview.sourceMap": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include source map information in compiled output"
         }
       }
     },
@@ -67,12 +98,20 @@
       {
         "command": "marknext.preview",
         "title": "Preview MarkNext",
+        "category": "MarkNext",
         "icon": "$(open-preview)"
       },
       {
         "command": "marknext.exportHtml",
         "title": "Export to HTML",
+        "category": "MarkNext",
         "icon": "$(save)"
+      },
+      {
+        "command": "marknext.exportHtmlStandalone",
+        "title": "Export to Standalone HTML",
+        "category": "MarkNext",
+        "icon": "$(save-all)"
       }
     ],
     "menus": {
@@ -82,21 +121,48 @@
           "command": "marknext.preview",
           "group": "navigation"
         }
+      ],
+      "commandPalette": [
+        {
+          "command": "marknext.preview",
+          "when": "editorLangId == marknext"
+        },
+        {
+          "command": "marknext.exportHtml",
+          "when": "editorLangId == marknext"
+        },
+        {
+          "command": "marknext.exportHtmlStandalone",
+          "when": "editorLangId == marknext"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "marknext.exportHtml",
+          "when": "resourceExtname == .mnext || resourceExtname == .mn",
+          "group": "2_workspace@5"
+        }
       ]
-    }
+    },
+    "keybindings": [
+      {
+        "command": "marknext.preview",
+        "key": "ctrl+shift+v",
+        "mac": "cmd+shift+v",
+        "when": "editorLangId == marknext"
+      }
+    ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
+    "vscode:prepublish": "npm run build",
+    "build": "node build.js",
+    "compile": "node build.js",
     "watch": "tsc -watch -p ./"
   },
   "devDependencies": {
-    "@types/vscode": "^1.60.0",
-    "@types/node": "16.x",
-    "typescript": "^4.4.4"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/skorotkiewicz/marknext"
+    "@types/node": "20.x",
+    "@types/vscode": "^1.74.0",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.0.0"
   }
 }
