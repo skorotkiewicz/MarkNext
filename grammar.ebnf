@@ -235,6 +235,36 @@ math_block   = dollar, dollar, newline,
                dollar, dollar, newline,
                { blank_line };
 
+(* ========== COMPATIBILITY & CONFIGURATION (META) ========== *)
+
+(*
+ * The following are build-time constructs, not part of the document grammar,
+ * but specified for completeness of the toolchain.
+ *)
+
+config_file  = { config_section };
+config_section= "[", section_name, "]", { config_entry };
+section_name = "build" | "extensions" | "hooks" | "shortcodes" | "compatibility";
+config_entry = identifier, "=", config_value, newline;
+config_value = string | array | inline_table;
+
+compatibility_mode= "strict" | "warn" | "legacy";
+
+(* strict: Reject non-compliant syntax *)
+(* warn:   Allow but emit warnings *)
+(* legacy: Full CommonMark support (not recommended) *)
+
+(* ========== SOURCE POSITIONS ========== *)
+
+(* Every AST node carries an optional source position: *)
+(* position = { line: integer, column: integer, offset: integer } *)
+
+(* ========== LEXER IMPLEMENTATION NOTES ========== *)
+
+(* `gt` (> in blockquote context) and `gt_symbol` (> in URL closer context) *)
+(* are distinguished at the lexer level to simplify parsing. Both map to *)
+(* the same `gt` terminal in this grammar. *)
+
 (* ========== WHITESPACE HANDLING ========== *)
 
 (* Leading/trailing whitespace on lines is ignored except where noted *)

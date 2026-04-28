@@ -184,7 +184,8 @@ describe("MarkNext Parser", () => {
     test("renders ordered list", () => {
       const html = compileSync("1. a\n2. b");
       expect(html).toContain("<ol>");
-      expect(html).toContain("<li>");
+      expect(html).toContain('<li value="1">');
+      expect(html).toContain('<li value="2">');
     });
 
     test("renders blockquote", () => {

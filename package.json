@@ -1,6 +1,6 @@
 {
   "name": "marknext",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A minimal, unambiguous, and secure Markdown successor. Context-free grammar parser with no inline HTML.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

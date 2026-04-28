@@ -5,6 +5,7 @@ export { tokenize, Lexer } from './lexer';
 export { parse, Parser } from './parser';
 export { renderToHTML, HTMLRenderer } from './renderer';
 export { TokenType, type Token, type Position, type TokenWithLiteral } from './tokens';
+export { parseConfig, loadConfig, type MarkNextConfig } from './config';
 export type {
   Node, NodeType, Document, Block, Header, Paragraph, List, ListItem,
   CodeBlock, Blockquote, ThematicBreak, Table, TableRow, TableCell,
@@ -17,8 +18,15 @@ import { parse, Parser } from './parser';
 import { renderToHTML } from './renderer';
 import type { RenderOptions } from './renderer';
 
+export type CompatibilityMode = 'strict' | 'warn' | 'legacy';
+
 export interface CompileOptions extends RenderOptions {
   sourceMap?: boolean;
+  hooks?: {
+    pre?: (source: string) => string;
+    post?: (html: string) => string;
+  };
+  compatibility?: CompatibilityMode;
 }
 
 export interface CompileResult {
@@ -31,16 +39,22 @@ export interface CompileResult {
  * Compile MarkNext source to HTML
  */
 export function compile(source: string, options: CompileOptions = {}): CompileResult {
-  // Step 1: Tokenize
-  const tokens = tokenize(source);
+  // Step 1: Pre-processing hooks
+  const processedSource = options.hooks?.pre ? options.hooks.pre(source) : source;
 
-  // Step 2: Parse
-  const parser = new Parser(tokens);
+  // Step 2: Tokenize
+  const tokens = tokenize(processedSource);
+
+  // Step 3: Parse
+  const parser = new Parser(tokens, options.compatibility);
   const ast = parser.parse();
   const errors = parser.getErrors();
 
-  // Step 3: Render
-  const html = renderToHTML(ast, options);
+  // Step 4: Render
+  let html = renderToHTML(ast, options);
+
+  // Step 5: Post-processing hooks
+  html = options.hooks?.post ? options.hooks.post(html) : html;
 
   return {
     html,
@@ -77,4 +91,4 @@ export async function compileFile(inputPath: string, outputPath?: string, option
 }
 
 // Version
-export const VERSION = '1.0.2';
+export const VERSION = '1.0.3';

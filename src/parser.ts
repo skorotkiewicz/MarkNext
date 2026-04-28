@@ -1,11 +1,13 @@
 import { TokenType } from './tokens';
 import type { Token } from './tokens';
+import type { Position } from './tokens';
 import type {
   Node, Document, Block, Header, Paragraph, List, ListItem,
   CodeBlock, Blockquote, ThematicBreak, Table, TableRow, TableCell,
   Inline, Text, Bold, Italic, Code, Link, Image, LineBreak, Escape,
   Footnote, FootnoteDefinition, Math, MathBlock, Shortcode
 } from './ast';
+import type { CompatibilityMode } from './index';
 
 interface ParseError {
   message: string;
@@ -17,9 +19,11 @@ export class Parser {
   private tokens: Token[];
   private position: number = 0;
   private errors: ParseError[] = [];
+  private compatibility: CompatibilityMode;
 
-  constructor(tokens: Token[]) {
+  constructor(tokens: Token[], compatibility?: CompatibilityMode) {
     this.tokens = tokens;
+    this.compatibility = compatibility || 'strict';
   }
 
   parse(): Document {
@@ -37,7 +41,8 @@ export class Parser {
 
     return {
       type: 'Document',
-      children: blocks
+      children: blocks,
+      position: { line: 1, column: 1, offset: 0 }
     };
   }
 
@@ -47,6 +52,19 @@ export class Parser {
 
   private isAtEnd(): boolean {
     return this.peek().type === TokenType.EOF;
+  }
+
+  private nodePos(): Position {
+    return this.peek().position;
+  }
+
+  private compatIssue(message: string): void {
+    if (this.compatibility === 'strict') {
+      this.errors.push({ message, line: this.peek().position.line, column: this.peek().position.column });
+    } else if (this.compatibility === 'warn') {
+      this.errors.push({ message: `[WARN] ${message}`, line: this.peek().position.line, column: this.peek().position.column });
+    }
+    // legacy: silently ignore
   }
 
   private peek(): Token {
@@ -150,7 +168,7 @@ export class Parser {
 
   private parseThematicBreak(): ThematicBreak {
     this.advance(); // consume ---
-    return { type: 'ThematicBreak' };
+    return { type: 'ThematicBreak', position: this.nodePos() };
   }
 
   private parseHeader(): Header | Paragraph {
@@ -174,7 +192,7 @@ export class Parser {
       this.advance(); // consume closing hashes
     }
 
-    return { type: 'Header', level, children };
+    return { type: 'Header', level, children, position: this.nodePos() };
   }
 
   private parseCodeBlock(): CodeBlock {
@@ -212,7 +230,7 @@ export class Parser {
       this.advance(); // consume closing ```
     }
 
-    return { type: 'CodeBlock', language, content };
+    return { type: 'CodeBlock', language, content, position: this.nodePos() };
   }
 
   private parseBlockquote(): Blockquote {
@@ -243,7 +261,7 @@ export class Parser {
       }
     }
 
-    return { type: 'Blockquote', children: blocks };
+    return { type: 'Blockquote', children: blocks, position: this.nodePos() };
   }
 
   private parseList(): List {
@@ -308,7 +326,7 @@ export class Parser {
       }
     }
 
-    return { type: 'List', ordered, children: items };
+    return { type: 'List', ordered, children: items, position: this.nodePos() };
   }
 
   private countIndent(): number {
@@ -338,9 +356,11 @@ export class Parser {
   }
 
   private parseListItem(ordered: boolean): ListItem | null {
+    let number: string | undefined;
+
     // Consume marker
     if (ordered) {
-      this.advance(); // number
+      number = this.advance().value; // number
       this.advance(); // .
     } else {
       this.advance(); // -
@@ -391,7 +411,9 @@ export class Parser {
       }
     }
 
-    return { type: 'ListItem', children };
+    const item: ListItem = { type: 'ListItem', children, position: this.nodePos() };
+    if (number !== undefined) item.number = number;
+    return item;
   }
 
   private parseParagraph(): Paragraph {
@@ -429,7 +451,7 @@ export class Parser {
       }
     }
 
-    return { type: 'Paragraph', children };
+    return { type: 'Paragraph', children, position: this.nodePos() };
   }
 
   private parseInline(): Inline | null {
@@ -476,7 +498,7 @@ export class Parser {
         // Line break: \ followed by newline
         this.advance(); // consume \
         this.advance(); // consume newline
-        return { type: 'LineBreak' };
+        return { type: 'LineBreak', position: this.nodePos() };
       }
       // Otherwise it's an escape
       return this.parseEscape();
@@ -510,14 +532,14 @@ export class Parser {
       }
 
       if (value.length > 0) {
-        return { type: 'Text', value };
+        return { type: 'Text', value, position: this.nodePos() };
       }
     }
 
     // Skip unknown tokens but include them as text
     if (!this.isAtEnd()) {
       const t = this.advance();
-      return { type: 'Text', value: t.value };
+      return { type: 'Text', value: t.value, position: this.nodePos() };
     }
     return null;
   }
@@ -533,11 +555,11 @@ export class Parser {
 
     if (this.check(TokenType.STAR)) {
       this.advance(); // consume closing *
-      return { type: 'Bold', children };
+      return { type: 'Bold', children, position: this.nodePos() };
     }
 
     // Unclosed bold - treat as text
-    return { type: 'Text', value: '*' + children.map(c => this.inlineToText(c)).join('') };
+    return { type: 'Text', value: '*' + children.map(c => this.inlineToText(c)).join(''), position: this.nodePos() };
   }
 
   private parseItalic(): Italic | Text {
@@ -551,11 +573,11 @@ export class Parser {
 
     if (this.check(TokenType.SLASH)) {
       this.advance(); // consume closing /
-      return { type: 'Italic', children };
+      return { type: 'Italic', children, position: this.nodePos() };
     }
 
     // Unclosed italic - treat as text
-    return { type: 'Text', value: '/' + children.map(c => this.inlineToText(c)).join('') };
+    return { type: 'Text', value: '/' + children.map(c => this.inlineToText(c)).join(''), position: this.nodePos() };
   }
 
   private parseCode(): Code {
@@ -570,7 +592,7 @@ export class Parser {
       this.advance(); // consume closing `
     }
 
-    return { type: 'Code', value };
+    return { type: 'Code', value, position: this.nodePos() };
   }
 
   private parseLink(): Link | Text {
@@ -584,12 +606,12 @@ export class Parser {
     }
 
     if (!this.check(TokenType.RBRACKET)) {
-      return { type: 'Text', value: '[' + textChildren.map(c => this.inlineToText(c)).join('') };
+      return { type: 'Text', value: '[' + textChildren.map(c => this.inlineToText(c)).join(''), position: this.nodePos() };
     }
     this.advance(); // consume ]
 
     if (!this.check(TokenType.LPAREN)) {
-      return { type: 'Text', value: '[' + textChildren.map(c => this.inlineToText(c)).join('') + ']' };
+      return { type: 'Text', value: '[' + textChildren.map(c => this.inlineToText(c)).join('') + ']', position: this.nodePos() };
     }
     this.advance(); // consume (
 
@@ -632,7 +654,7 @@ export class Parser {
       this.advance();
     }
 
-    return { type: 'Link', url, title, children: textChildren };
+    return { type: 'Link', url, title, children: textChildren, position: this.nodePos() };
   }
 
   private parseImage(): Image | Text {
@@ -646,12 +668,12 @@ export class Parser {
     }
 
     if (!this.check(TokenType.RBRACKET)) {
-      return { type: 'Text', value: '![' + alt };
+      return { type: 'Text', value: '![' + alt, position: this.nodePos() };
     }
     this.advance(); // consume ]
 
     if (!this.check(TokenType.LPAREN)) {
-      return { type: 'Text', value: '![' + alt + ']' };
+      return { type: 'Text', value: '![' + alt + ']', position: this.nodePos() };
     }
     this.advance(); // consume (
 
@@ -692,7 +714,7 @@ export class Parser {
       this.advance();
     }
 
-    return { type: 'Image', url, alt, title };
+    return { type: 'Image', url, alt, title, position: this.nodePos() };
   }
 
   private static readonly ESCAPABLE_CHARS = new Set([
@@ -703,7 +725,7 @@ export class Parser {
     this.advance(); // consume \
 
     if (this.isAtEnd()) {
-      return { type: 'Text', value: '\\' };
+      return { type: 'Text', value: '\\', position: this.nodePos() };
     }
 
     const token = this.advance();
@@ -715,14 +737,14 @@ export class Parser {
         this.position--;
         (this.tokens[this.position] as { value: string }).value = rest;
       }
-      return { type: 'Escape', char: firstChar };
+      return { type: 'Escape', char: firstChar, position: this.nodePos() };
     }
 
     if (rest.length > 0) {
       this.position--;
       (this.tokens[this.position] as { value: string }).value = rest;
     }
-    return { type: 'Text', value: '\\' + firstChar };
+    return { type: 'Text', value: '\\' + firstChar, position: this.nodePos() };
   }
 
   private parseFootnote(): Footnote | Text {
@@ -735,11 +757,11 @@ export class Parser {
     }
 
     if (!this.check(TokenType.RBRACKET)) {
-      return { type: 'Text', value: '[^' + id };
+      return { type: 'Text', value: '[^' + id, position: this.nodePos() };
     }
     this.advance(); // consume ]
 
-    return { type: 'Footnote', id: id.trim() };
+    return { type: 'Footnote', id: id.trim(), position: this.nodePos() };
   }
 
   private isShortcode(): boolean {
@@ -789,17 +811,21 @@ export class Parser {
         this.advance();
 
         let paramValue = '';
+        // EBNF: param_value = dquote, { any_char - dquote - newline }, dquote
         if (this.check(TokenType.DQUOTE)) {
           this.advance();
-          while (!this.isAtEnd() && !this.check(TokenType.DQUOTE)) {
+          while (!this.isAtEnd() && !this.check(TokenType.DQUOTE) && !this.check(TokenType.NEWLINE)) {
             paramValue += this.advance().value;
           }
           if (this.check(TokenType.DQUOTE)) {
             this.advance();
           }
         } else {
+          // Unquoted value — not valid per EBNF
+          this.compatIssue(`Shortcode parameter "${paramName}" value must be quoted`);
+          // Skip to next space/bracket as error recovery
           while (!this.isAtEnd() && !this.check(TokenType.SPACE) && !this.check(TokenType.RBRACKET) && !this.check(TokenType.NEWLINE)) {
-            paramValue += this.advance().value;
+            this.advance();
           }
         }
 
@@ -815,7 +841,7 @@ export class Parser {
       this.advance();
     }
 
-    return { type: 'Shortcode', name, params };
+    return { type: 'Shortcode', name, params, position: this.nodePos() };
   }
 
   private parseMath(): Math | Text {
@@ -835,7 +861,7 @@ export class Parser {
           // Check for $$
           if (this.peekNext(1).type === TokenType.DOLLAR) {
             this.advance(); this.advance(); // consume $$
-            return { type: 'Math', content: content.trim(), display };
+    return { type: 'Math', content: content.trim(), display, position: this.nodePos() };
           }
         } else {
           // Single $
@@ -848,7 +874,7 @@ export class Parser {
 
     // Unclosed math - treat as text
     const prefix = display ? '$$' : '$';
-    return { type: 'Text', value: prefix + content };
+    return { type: 'Text', value: prefix + content, position: this.nodePos() };
   }
 
   private isAutoLink(): boolean {
@@ -888,7 +914,8 @@ export class Parser {
     return {
       type: 'Link',
       url,
-      children: [{ type: 'Text', value: url }]
+      children: [{ type: 'Text', value: url, position: this.nodePos() }],
+      position: this.nodePos()
     };
   }
 
@@ -899,7 +926,7 @@ export class Parser {
     while (!this.isAtEnd()) {
       if (this.check(TokenType.DOLLAR) && this.peekNext(1).type === TokenType.DOLLAR) {
         this.advance(); this.advance(); // consume $$
-        return { type: 'MathBlock', content: content.trim() };
+        return { type: 'MathBlock', content: content.trim(), position: this.nodePos() };
       }
       if (this.check(TokenType.NEWLINE)) {
         content += '\n';
@@ -912,7 +939,8 @@ export class Parser {
     // Unclosed math block - treat as paragraph with literal $$ text
     return {
       type: 'Paragraph',
-      children: [{ type: 'Text', value: '$$' + content }]
+      children: [{ type: 'Text', value: '$$' + content, position: this.nodePos() }],
+      position: this.nodePos()
     };
   }
 
@@ -978,7 +1006,7 @@ export class Parser {
       }
     }
 
-    return { type: 'FootnoteDefinition', id: id.trim(), children };
+    return { type: 'FootnoteDefinition', id: id.trim(), children, position: this.nodePos() };
   }
 
   private parseTable(): Table {
@@ -1002,7 +1030,8 @@ export class Parser {
       type: 'Table',
       header: rows[0] || { type: 'TableRow', cells: [] },
       rows: rows.slice(1),
-      alignments: alignments.length > 0 ? alignments : undefined
+      alignments: alignments.length > 0 ? alignments : undefined,
+      position: this.nodePos()
     };
   }
 
@@ -1081,7 +1110,7 @@ export class Parser {
       }
 
       if (content.length > 0) {
-        cells.push({ type: 'TableCell', children: content });
+        cells.push({ type: 'TableCell', children: content, position: this.nodePos() });
       }
 
       if (this.check(TokenType.PIPE)) {
@@ -1093,7 +1122,7 @@ export class Parser {
       this.advance();
     }
 
-    return { type: 'TableRow', cells };
+    return { type: 'TableRow', cells, position: this.nodePos() };
   }
 
   private parseInlineUntilNewline(): Inline[] {

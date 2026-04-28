@@ -116,10 +116,14 @@ export class HTMLRenderer {
   private renderList(list: List): string {
     const tag = list.ordered ? 'ol' : 'ul';
     const items = list.children.map(child => this.render(child)).join('');
-    return this.wrap(tag, items);
+    // Preserve starting number for ordered lists
+    const firstNum = list.ordered ? list.children[0]?.number : undefined;
+    const startAttr = firstNum && firstNum !== '1' ? ` start="${firstNum}"` : '';
+    return this.wrap(tag, items, startAttr);
   }
 
   private renderListItem(item: ListItem): string {
+    const valueAttr = item.number ? ` value="${item.number}"` : '';
     const content = item.children.map(child => {
       if (child.type === 'Header' || child.type === 'Paragraph' || child.type === 'List' ||
           child.type === 'CodeBlock' || child.type === 'Blockquote' || child.type === 'Table') {
@@ -128,7 +132,7 @@ export class HTMLRenderer {
         return this.renderInline(child as Inline);
       }
     }).join('');
-    return this.wrap('li', content);
+    return this.wrap('li', content, valueAttr);
   }
 
   private renderCodeBlock(block: CodeBlock): string {

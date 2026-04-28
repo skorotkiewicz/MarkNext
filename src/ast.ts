@@ -71,6 +71,7 @@ export interface List extends Node {
 
 export interface ListItem extends Node {
   type: 'ListItem';
+  number?: string; // preserved ordered list marker (e.g., "1", "2")
   children: (Block | Inline)[];
 }
 

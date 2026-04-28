@@ -5,7 +5,7 @@ import { compile, compileSync, type CompileOptions } from './index';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync, watch } from 'fs';
 import { resolve, dirname, extname, basename, join } from 'path';
 
-const VERSION = '1.0.2';
+const VERSION = '1.0.3';
 
 interface CLIOptions extends CompileOptions {
   watch: boolean;
@@ -22,6 +22,7 @@ MarkNext CLI v${VERSION}
 
 Usage:
   marknext [options] <input>
+  marknext migrate <input> [output]
 
 Arguments:
   input                Input file or directory (.mnext or .mn)
@@ -43,6 +44,7 @@ Examples:
   marknext docs/ -r                     Compile all files in directory
   marknext doc.mnext -w                 Watch and recompile on changes
   marknext doc.mnext -f json            Output AST as JSON
+  marknext migrate doc.md doc.mnext     Convert Markdown to MarkNext
 `);
 }
 
@@ -378,12 +380,62 @@ function watchDirectory(dir: string, options: CLIOptions): void {
   });
 }
 
+function migrateFile(inputPath: string, outputPath?: string): boolean {
+  try {
+    const source = readFileSync(inputPath, 'utf-8');
+    let migrated = source;
+
+    // **bold** → *bold*
+    migrated = migrated.replace(/\*\*([^*]+)\*\*/g, '*$1*');
+
+    // _italic_ → /italic/
+    migrated = migrated.replace(/(?<![a-zA-Z0-9])_([^_]+)_(?![a-zA-Z0-9])/g, '/$1/');
+
+    // Setext headers → ATX
+    migrated = migrated.replace(/^(.*)\n={3,}\s*$/gm, '# $1');
+    migrated = migrated.replace(/^(.*)\n-{3,}\s*$/gm, '## $1');
+
+    // Reference-style links → direct links (best-effort)
+    migrated = migrated.replace(/\[([^\]]+)\]\[([^\]]*)\]/g, '[$1]($2)');
+    migrated = migrated.replace(/\[([^\]]+)\]:\s*([^\s]+)(?:\s+"([^"]*)")?\s*$/gm, '');
+
+    // Inline HTML → shortcode warnings (best-effort)
+    migrated = migrated.replace(/<([a-zA-Z][a-zA-Z0-9]*)[^>]*>.*?<\/\1>/gs, '[warning text="Removed inline HTML: <$1>"]');
+    migrated = migrated.replace(/<[a-zA-Z][a-zA-Z0-9]*[^>]*\/>/g, '[warning text="Removed inline HTML"]');
+
+    const outPath = outputPath || inputPath.replace(/\.md$/i, '.mnext');
+    writeFileSync(outPath, migrated, 'utf-8');
+    console.log(`✓ ${inputPath} → ${outPath}`);
+    return true;
+  } catch (error) {
+    console.error(`✗ Error migrating ${inputPath}:`, error instanceof Error ? error.message : error);
+    return false;
+  }
+}
+
 function main(): void {
   const args = process.argv.slice(2);
 
   if (args.length === 0) {
     showHelp();
     process.exit(0);
+  }
+
+  // Handle migrate subcommand
+  if (args[0] === 'migrate') {
+    const migrateArgs = args.slice(1);
+    if (migrateArgs.length === 0) {
+      console.error('Error: migrate requires an input file');
+      process.exit(1);
+    }
+    const inputPath = resolve(migrateArgs[0]!);
+    const outputPath = migrateArgs[1] ? resolve(migrateArgs[1]) : undefined;
+    if (!existsSync(inputPath)) {
+      console.error(`Error: File not found: ${migrateArgs[0]}`);
+      process.exit(1);
+    }
+    const success = migrateFile(inputPath, outputPath);
+    process.exit(success ? 0 : 1);
   }
 
   const { options, input } = parseArgs(args);
