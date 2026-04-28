@@ -5,7 +5,7 @@ import { compile, compileSync, type CompileOptions } from './index';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync, watch } from 'fs';
 import { resolve, dirname, extname, basename, join } from 'path';
 
-const VERSION = '1.0.0';
+const VERSION = '1.0.2';
 
 interface CLIOptions extends CompileOptions {
   watch: boolean;
@@ -24,7 +24,7 @@ Usage:
   marknext [options] <input>
 
 Arguments:
-  input                Input file or directory (.mnext or .md)
+  input                Input file or directory (.mnext or .mn)
 
 Options:
   -o, --output <dir>   Output directory (default: same as input)
@@ -110,7 +110,7 @@ function parseArgs(args: string[]): { options: CLIOptions; input: string | null 
       case '--quiet':
         options.quiet = true;
         break;
-      
+
       case '-s':
       case '--standalone':
         options.standalone = true;
@@ -138,7 +138,7 @@ function parseArgs(args: string[]): { options: CLIOptions; input: string | null 
 
 function isMarkdownFile(filename: string): boolean {
   const ext = extname(filename).toLowerCase();
-  return ext === '.mnext' || ext === '.md' || ext === '.markdown';
+  return ext === '.mnext' || ext === '.mn';
 }
 
 function getOutputFilename(inputPath: string, format: string): string {
@@ -180,7 +180,7 @@ function compileFile(inputPath: string, options: CLIOptions): boolean {
       output = JSON.stringify(result.ast, null, 2);
     } else {
       output = result.html;
-      
+
       // Wrap in standalone HTML document if requested
       if (options.standalone) {
         output = `<!DOCTYPE html>
@@ -309,7 +309,7 @@ function compileDirectory(dir: string, options: CLIOptions): { success: number; 
 
   if (files.length === 0) {
     if (!options.quiet) {
-      console.log(`No .mnext or .md files found in ${dir}`);
+      console.log(`No .mnext or .mn files found in ${dir}`);
     }
     return { success: 0, failed: 0 };
   }
@@ -405,7 +405,8 @@ function main(): void {
 
   if (stat.isFile()) {
     if (!isMarkdownFile(inputPath)) {
-      console.warn(`Warning: ${input} doesn't have .mnext or .md extension`);
+      console.error(`Error: ${input} is not a .mnext or .mn file. MarkNext only accepts .mnext and .mn files.`);
+      process.exit(1);
     }
 
     if (options.watch) {

@@ -1,0 +1,214 @@
+# MarkNext Example Document
+
+A comprehensive demonstration of all MarkNext features.
+
+## Emphasis
+
+This is *bold text* and this is /italic text/.
+
+Combined: */bold italic/* and /*italic bold*/.
+
+## Inline Code
+
+Use the `console.log()` function to debug.
+
+## Links
+
+[MarkNext on GitHub](https://github.com/skorotkiewicz/marknext)
+
+[Link with title](https://example.com "Example Site")
+
+<https://example.com>
+
+<mailto:hello@example.com>
+
+## Images
+
+![MarkNext Logo](logo.png)
+
+![Diagram](diagram.svg "System Architecture")
+
+## Headers
+
+# H1
+
+## H2
+
+### H3
+
+#### H4
+
+##### H5
+
+###### H6
+
+## Lists
+
+### Unordered
+
+- First item
+- Second item
+- Third item
+
+### Ordered
+
+1. Step one
+2. Step two
+3. Step three
+
+### Sublists
+
+- Item A
+  - Nested A1
+  - Nested A2
+- Item B
+  - Nested B1
+
+### Deep Nesting
+
+- Level 1
+  - Level 2
+    - Level 3
+- Back to level 1
+
+### Continuation
+
+- This item has
+  a continuation line
+- Another item
+
+## Blockquotes
+
+> This is a blockquote
+> spanning multiple lines
+
+> Nested:
+>> This is nested
+
+## Code Blocks
+
+```javascript
+function greet(name) {
+  return `Hello, ${name}!`;
+}
+```
+
+```objective-c
+NSLog(@"Hello, MarkNext!");
+```
+
+```f_sharp
+let greet name = sprintf "Hello, %s!" name
+```
+
+## Tables
+
+| Feature   | Markdown | MarkNext |
+|-----------|----------|----------|
+| Bold      | ** or __ | * only   |
+| Italic    | * or _   | / only   |
+| Lists     | * - +    | - only   |
+
+### Aligned Tables
+
+| Left   | Center |  Right |
+|:-------|:------:|-------:|
+| Left   | Center | Right  |
+| L      | C      | R      |
+
+## Thematic Break
+
+---
+
+## Line Breaks
+
+First line\
+Second line
+
+## Escapes
+
+\*Not bold\*
+
+\#Not a header
+
+\\/Not italic/
+
+\\[Not a link\\]
+
+Non-escapable: \x remains literal
+
+## Footnotes
+
+This text has a footnote[^1] and another[^2].
+
+[^1]: This is the first footnote.
+
+[^2]: This is the second footnote with more detail.
+
+## Math
+
+Inline math: $E = mc^2$ and $a^2 + b^2 = c^2$
+
+Display math:
+
+$$
+\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
+$$
+
+$$
+\sum_{i=1}^{n} i = \frac{n(n+1)}{2}
+$$
+
+## Shortcodes
+
+[alert type="warning" text="Proceed with caution"]
+
+[info text="This is an informational note"]
+
+[button url="/download" label="Download Now"]
+
+[math latex="E=mc^2"]
+
+## Security
+
+<script>alert('xss')</script> is escaped, not executed.
+
+<div>HTML is prohibited</div> — use shortcodes instead.
+
+[warning text="Use shortcodes instead of HTML"]
+
+
+
+
+
+
+# MarkNext Extensions Demo
+
+## Footnotes
+
+This is a paragraph with a footnote[^1].
+
+[^1]: This is the footnote content.
+
+## Math
+
+Inline math: $E = mc^2$
+
+Display math block:
+
+$$
+\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
+$$
+
+## Tables with Alignment
+
+| Left | Center | Right |
+|:-----|:------:|------:|
+| A    | B      | C     |
+| 1    | 2      | 3     |
+
+## Combined Features
+
+Text with *bold*, /italic/, and math: $a^2 + b^2 = c^2$
+
+[^2]: Another footnote.

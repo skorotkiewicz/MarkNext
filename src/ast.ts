@@ -23,7 +23,8 @@ export type NodeType =
   | 'Link'
   | 'Image'
   | 'LineBreak'
-  | 'Escape';
+  | 'Escape'
+  | 'Shortcode';
 
 // Re-export Position from tokens.ts to avoid duplication
 export type { Position } from './tokens';
@@ -140,7 +141,8 @@ export type Inline =
   | LineBreak
   | Escape
   | Footnote
-  | Math;
+  | Math
+  | Shortcode;
 
 export interface Text extends Node {
   type: 'Text';
@@ -185,11 +187,17 @@ export interface Escape extends Node {
   char: string;
 }
 
+export interface Shortcode extends Node {
+  type: 'Shortcode';
+  name: string;
+  params: Record<string, string>;
+}
+
 // AST Traversal helpers
 export function isBlock(node: Node): node is Block {
   return ['Header', 'Paragraph', 'List', 'CodeBlock', 'Blockquote', 'ThematicBreak', 'Table', 'FootnoteDefinition', 'MathBlock'].includes(node.type);
 }
 
 export function isInline(node: Node): node is Inline {
-  return ['Text', 'Bold', 'Italic', 'Code', 'Link', 'Image', 'LineBreak', 'Escape', 'Footnote', 'Math'].includes(node.type);
+  return ['Text', 'Bold', 'Italic', 'Code', 'Link', 'Image', 'LineBreak', 'Escape', 'Footnote', 'Math', 'Shortcode'].includes(node.type);
 }

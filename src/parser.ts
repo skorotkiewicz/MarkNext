@@ -4,7 +4,7 @@ import type {
   Node, Document, Block, Header, Paragraph, List, ListItem,
   CodeBlock, Blockquote, ThematicBreak, Table, TableRow, TableCell,
   Inline, Text, Bold, Italic, Code, Link, Image, LineBreak, Escape,
-  Footnote, FootnoteDefinition, Math, MathBlock
+  Footnote, FootnoteDefinition, Math, MathBlock, Shortcode
 } from './ast';
 
 interface ParseError {
@@ -78,12 +78,25 @@ export class Parser {
   }
 
   private skipBlankLines(): void {
-    while (this.check(TokenType.NEWLINE)) {
-      this.advance();
-      // Skip additional whitespace/newlines
-      while (this.check(TokenType.SPACE) || this.check(TokenType.NEWLINE)) {
+    while (true) {
+      if (this.check(TokenType.NEWLINE)) {
         this.advance();
+        continue;
       }
+      if (this.check(TokenType.SPACE)) {
+        const saved = this.position;
+        this.advance();
+        if (this.check(TokenType.NEWLINE)) {
+          this.advance();
+          continue;
+        }
+        if (this.check(TokenType.SPACE)) {
+          continue;
+        }
+        this.position = saved;
+        break;
+      }
+      break;
     }
   }
 
@@ -169,9 +182,12 @@ export class Parser {
 
     let language: string | undefined;
 
-    // Check for language identifier
+    // Check for language identifier (EBNF: language = letter, { letter | digit | dash | underscore })
     if (this.check(TokenType.TEXT)) {
       language = this.advance().value;
+      while (this.check(TokenType.DASH) || this.check(TokenType.UNDERSCORE) || this.check(TokenType.TEXT)) {
+        language += this.advance().value;
+      }
     }
 
     this.expectNewline();
@@ -231,19 +247,61 @@ export class Parser {
   }
 
   private parseList(): List {
+    return this.parseListAtIndent(0);
+  }
+
+  private parseListAtIndent(indentLevel: number): List {
     const items: ListItem[] = [];
+
+    // Consume indent spaces if we're in a sublist
+    if (indentLevel > 0) {
+      this.consumeSpaces(indentLevel);
+    }
+
     const ordered = this.isOrderedListMarker();
 
+    // Parse first item
+    const firstItem = this.parseListItem(ordered);
+    if (firstItem) {
+      items.push(firstItem);
+    }
+
     while (true) {
-      const item = this.parseListItem(ordered);
-      if (item) {
-        items.push(item);
+      if (this.check(TokenType.NEWLINE)) {
+        this.advance();
       }
 
-      // Check for next item
+      // Check for indented sublist (deeper than current level)
+      const subIndent = this.countIndent();
+      if (subIndent > indentLevel && this.isIndentedListMarkerAfter(subIndent)) {
+        const subList = this.parseListAtIndent(subIndent);
+        if (items.length > 0) {
+          items[items.length - 1]!.children.push(subList);
+        }
+        // After sublist, re-check for more items without consuming another item
+        continue;
+      }
+
+      // Check for next item at current indent level
+      if (indentLevel > 0) {
+        const nextIndent = this.countIndent();
+        if (nextIndent === indentLevel && this.isIndentedListMarkerAfter(nextIndent)) {
+          this.consumeSpaces(indentLevel);
+          const item = this.parseListItem(ordered);
+          if (item) items.push(item);
+          continue;
+        }
+        break;
+      }
+
+      // Top-level: check for next item
       if (ordered && this.isOrderedListMarker()) {
+        const item = this.parseListItem(ordered);
+        if (item) items.push(item);
         continue;
       } else if (!ordered && this.check(TokenType.DASH)) {
+        const item = this.parseListItem(ordered);
+        if (item) items.push(item);
         continue;
       } else {
         break;
@@ -251,6 +309,32 @@ export class Parser {
     }
 
     return { type: 'List', ordered, children: items };
+  }
+
+  private countIndent(): number {
+    let count = 0;
+    while (this.position + count < this.tokens.length && this.tokens[this.position + count]!.type === TokenType.SPACE) {
+      count++;
+    }
+    return count;
+  }
+
+  private isIndentedListMarkerAfter(indent: number): boolean {
+    const markerIdx = this.position + indent;
+    if (markerIdx >= this.tokens.length) return false;
+    const marker = this.tokens[markerIdx]!;
+    if (marker.type === TokenType.DASH) return true;
+    if (marker.type === TokenType.TEXT && /^\d+$/.test(marker.value)) {
+      const afterIdx = markerIdx + 1;
+      return afterIdx < this.tokens.length && this.tokens[afterIdx]!.type === TokenType.PERIOD;
+    }
+    return false;
+  }
+
+  private consumeSpaces(count: number): void {
+    for (let i = 0; i < count && this.check(TokenType.SPACE); i++) {
+      this.advance();
+    }
   }
 
   private parseListItem(ordered: boolean): ListItem | null {
@@ -270,7 +354,7 @@ export class Parser {
 
     const children: (Block | Inline)[] = [];
 
-    // Parse content until next list item or end
+    // Parse content until newline
     while (!this.isAtEnd() && !this.check(TokenType.NEWLINE)) {
       const inline = this.parseInline();
       if (inline) {
@@ -278,21 +362,24 @@ export class Parser {
       }
     }
 
-    // Handle continuation lines (indented content)
+    // Handle continuation lines (indented inline content only, not sublists)
     if (this.check(TokenType.NEWLINE)) {
       this.advance();
 
-      // Check for nested list or continuation
-      while (this.check(TokenType.SPACE) && this.checkNextIndent()) {
-        // Continuation of this item
-        this.advance(); this.advance(); // consume indent
+      while (this.check(TokenType.SPACE)) {
+        const indent = this.countIndent();
+        if (indent < 2) break;
+        if (this.isIndentedListMarkerAfter(indent)) break;
+
+        // Consume the indent spaces
+        for (let i = 0; i < indent; i++) this.advance();
 
         if (this.check(TokenType.NEWLINE)) {
           this.advance();
           continue;
         }
 
-        // More content
+        // Inline continuation content
         while (!this.isAtEnd() && !this.check(TokenType.NEWLINE)) {
           const inline = this.parseInline();
           if (inline) children.push(inline);
@@ -322,8 +409,8 @@ export class Parser {
       this.advance();
     }
 
-    // Continue paragraph if next line isn't a block element
-    while (!this.isAtEnd() && !this.isBlockStart()) {
+    // Continue paragraph if next line isn't a block element or blank line
+    while (!this.isAtEnd() && !this.isBlockStart() && !this.isBlankLine()) {
       // Add space between lines if needed
       if (children.length > 0) {
         const last = children[children.length - 1]!;
@@ -373,6 +460,11 @@ export class Parser {
       return this.parseFootnote();
     }
 
+    // Shortcode: [name param="value"] (EBNF lines 192-199, spec section 5.2)
+    if (this.isShortcode()) {
+      return this.parseShortcode();
+    }
+
     // Link: [text](url)
     if (token.type === TokenType.LBRACKET) {
       return this.parseLink();
@@ -393,6 +485,11 @@ export class Parser {
     // Math inline: $...$ or $$...$$
     if (token.type === TokenType.DOLLAR) {
       return this.parseMath();
+    }
+
+    // Auto-link: <url> (EBNF: auto_link = lt, link_url, gt; spec section 4.5)
+    if (token.type === TokenType.LT && this.isAutoLink()) {
+      return this.parseAutoLink();
     }
 
     // Text content (including < and > which are text in most contexts)
@@ -429,7 +526,7 @@ export class Parser {
     this.advance(); // consume *
 
     const children: Inline[] = [];
-    while (!this.isAtEnd() && !this.check(TokenType.STAR)) {
+    while (!this.isAtEnd() && !this.check(TokenType.STAR) && !this.check(TokenType.PIPE) && !this.check(TokenType.NEWLINE)) {
       const inline = this.parseInline();
       if (inline) children.push(inline);
     }
@@ -447,7 +544,7 @@ export class Parser {
     this.advance(); // consume /
 
     const children: Inline[] = [];
-    while (!this.isAtEnd() && !this.check(TokenType.SLASH)) {
+    while (!this.isAtEnd() && !this.check(TokenType.SLASH) && !this.check(TokenType.PIPE) && !this.check(TokenType.NEWLINE)) {
       const inline = this.parseInline();
       if (inline) children.push(inline);
     }
@@ -500,13 +597,13 @@ export class Parser {
     let url = '';
     let title: string | undefined;
 
-    // Handle <url> format
+    // Handle <url> format (EBNF: angle_url = lt, link_url, gt)
     if (this.check(TokenType.LT)) {
       this.advance();
-      while (!this.isAtEnd() && !this.check(TokenType.GT_SYMBOL) && !this.check(TokenType.GT)) {
+      while (!this.isAtEnd() && !this.check(TokenType.GT_SYMBOL)) {
         url += this.advance().value;
       }
-      if (this.check(TokenType.GT_SYMBOL) || this.check(TokenType.GT)) {
+      if (this.check(TokenType.GT_SYMBOL)) {
         this.advance();
       }
     } else {
@@ -564,10 +661,10 @@ export class Parser {
 
     if (this.check(TokenType.LT)) {
       this.advance();
-      while (!this.isAtEnd() && !this.check(TokenType.GT_SYMBOL) && !this.check(TokenType.GT)) {
+      while (!this.isAtEnd() && !this.check(TokenType.GT_SYMBOL)) {
         url += this.advance().value;
       }
-      if (this.check(TokenType.GT_SYMBOL) || this.check(TokenType.GT)) {
+      if (this.check(TokenType.GT_SYMBOL)) {
         this.advance();
       }
     } else {
@@ -598,6 +695,10 @@ export class Parser {
     return { type: 'Image', url, alt, title };
   }
 
+  private static readonly ESCAPABLE_CHARS = new Set([
+    '\\', '*', '/', '`', '[', ']', '(', ')', '!', '#', '-', '>', '|', '<', '"', ':', '=', '^', '$'
+  ]);
+
   private parseEscape(): Escape | Text {
     this.advance(); // consume \
 
@@ -605,8 +706,23 @@ export class Parser {
       return { type: 'Text', value: '\\' };
     }
 
-    const char = this.advance().value;
-    return { type: 'Escape', char };
+    const token = this.advance();
+    const firstChar = token.value[0]!;
+    const rest = token.value.slice(1);
+
+    if (Parser.ESCAPABLE_CHARS.has(firstChar)) {
+      if (rest.length > 0) {
+        this.position--;
+        (this.tokens[this.position] as { value: string }).value = rest;
+      }
+      return { type: 'Escape', char: firstChar };
+    }
+
+    if (rest.length > 0) {
+      this.position--;
+      (this.tokens[this.position] as { value: string }).value = rest;
+    }
+    return { type: 'Text', value: '\\' + firstChar };
   }
 
   private parseFootnote(): Footnote | Text {
@@ -624,6 +740,82 @@ export class Parser {
     this.advance(); // consume ]
 
     return { type: 'Footnote', id: id.trim() };
+  }
+
+  private isShortcode(): boolean {
+    if (!this.check(TokenType.LBRACKET)) return false;
+
+    const name = this.peekNext(1);
+    if (name.type !== TokenType.TEXT) return false;
+    if (!/^[a-zA-Z][a-zA-Z0-9-]*$/.test(name.value)) return false;
+
+    const afterName = this.peekNext(2);
+
+    if (afterName.type === TokenType.RBRACKET) {
+      return this.peekNext(3).type !== TokenType.LPAREN;
+    }
+
+    if (afterName.type === TokenType.SPACE) {
+      let i = 3;
+      while (i < 30) {
+        const tok = this.peekNext(i);
+        if (tok.type === TokenType.RBRACKET || tok.type === TokenType.NEWLINE || tok.type === TokenType.EOF) break;
+        if (tok.type === TokenType.EQUALS) return true;
+        i++;
+      }
+    }
+
+    return false;
+  }
+
+  private parseShortcode(): Shortcode {
+    this.advance(); // consume [
+
+    const name = this.advance().value;
+    const params: Record<string, string> = {};
+
+    while (!this.isAtEnd() && !this.check(TokenType.RBRACKET) && !this.check(TokenType.NEWLINE)) {
+      if (this.check(TokenType.SPACE)) {
+        this.advance();
+        continue;
+      }
+
+      let paramName = '';
+      while (!this.isAtEnd() && !this.check(TokenType.EQUALS) && !this.check(TokenType.RBRACKET) && !this.check(TokenType.SPACE) && !this.check(TokenType.NEWLINE)) {
+        paramName += this.advance().value;
+      }
+
+      if (this.check(TokenType.EQUALS)) {
+        this.advance();
+
+        let paramValue = '';
+        if (this.check(TokenType.DQUOTE)) {
+          this.advance();
+          while (!this.isAtEnd() && !this.check(TokenType.DQUOTE)) {
+            paramValue += this.advance().value;
+          }
+          if (this.check(TokenType.DQUOTE)) {
+            this.advance();
+          }
+        } else {
+          while (!this.isAtEnd() && !this.check(TokenType.SPACE) && !this.check(TokenType.RBRACKET) && !this.check(TokenType.NEWLINE)) {
+            paramValue += this.advance().value;
+          }
+        }
+
+        if (paramName) {
+          params[paramName] = paramValue;
+        }
+      } else if (paramName) {
+        params[paramName] = '';
+      }
+    }
+
+    if (this.check(TokenType.RBRACKET)) {
+      this.advance();
+    }
+
+    return { type: 'Shortcode', name, params };
   }
 
   private parseMath(): Math | Text {
@@ -659,7 +851,48 @@ export class Parser {
     return { type: 'Text', value: prefix + content };
   }
 
-  private parseMathBlock(): MathBlock | null {
+  private isAutoLink(): boolean {
+    if (this.peek().type !== TokenType.LT) return false;
+
+    let i = 1;
+    let content = '';
+    while (i < 30) {
+      const tok = this.peekNext(i);
+      if (tok.type === TokenType.GT_SYMBOL) {
+        break;
+      }
+      if (tok.type === TokenType.NEWLINE || tok.type === TokenType.EOF) {
+        return false;
+      }
+      content += tok.value;
+      i++;
+    }
+
+    if (!content) return false;
+
+    return /^(https?:\/\/|ftp:\/\/|mailto:)/.test(content);
+  }
+
+  private parseAutoLink(): Link {
+    this.advance(); // consume <
+
+    let url = '';
+    while (!this.isAtEnd() && !this.check(TokenType.GT_SYMBOL) && !this.check(TokenType.NEWLINE)) {
+      url += this.advance().value;
+    }
+
+    if (this.check(TokenType.GT_SYMBOL)) {
+      this.advance(); // consume >
+    }
+
+    return {
+      type: 'Link',
+      url,
+      children: [{ type: 'Text', value: url }]
+    };
+  }
+
+  private parseMathBlock(): MathBlock | Paragraph {
     this.advance(); this.advance(); // consume $$
 
     let content = '';
@@ -676,8 +909,11 @@ export class Parser {
       }
     }
 
-    // Unclosed math block - return null to let paragraph handle it
-    return null;
+    // Unclosed math block - treat as paragraph with literal $$ text
+    return {
+      type: 'Paragraph',
+      children: [{ type: 'Text', value: '$$' + content }]
+    };
   }
 
   private parseFootnoteDefinition(): FootnoteDefinition | null {
@@ -746,20 +982,15 @@ export class Parser {
   }
 
   private parseTable(): Table {
-    // Simple table parsing - can be expanded
     const rows: TableRow[] = [];
+    let alignments: ('left' | 'center' | 'right' | null)[] = [];
 
     // Header row
     rows.push(this.parseTableRow());
 
-    // Separator row (skip)
+    // Separator row - parse alignments (EBNF: table_align / align_marker)
     if (this.check(TokenType.PIPE)) {
-      while (!this.isAtEnd() && !this.check(TokenType.NEWLINE)) {
-        this.advance();
-      }
-      if (this.check(TokenType.NEWLINE)) {
-        this.advance();
-      }
+      alignments = this.parseTableSeparator();
     }
 
     // Data rows
@@ -770,8 +1001,56 @@ export class Parser {
     return {
       type: 'Table',
       header: rows[0] || { type: 'TableRow', cells: [] },
-      rows: rows.slice(1)
+      rows: rows.slice(1),
+      alignments: alignments.length > 0 ? alignments : undefined
     };
+  }
+
+  private parseTableSeparator(): ('left' | 'center' | 'right' | null)[] {
+    const alignments: ('left' | 'center' | 'right' | null)[] = [];
+
+    this.advance(); // consume |
+
+    while (!this.isAtEnd() && !this.check(TokenType.NEWLINE)) {
+      if (this.check(TokenType.SPACE)) {
+        this.advance();
+        continue;
+      }
+
+      const leftColon = this.check(TokenType.COLON);
+      if (leftColon) this.advance();
+
+      let dashCount = 0;
+      while (this.check(TokenType.DASH)) {
+        this.advance();
+        dashCount++;
+      }
+
+      const rightColon = this.check(TokenType.COLON);
+      if (rightColon) this.advance();
+
+      if (dashCount > 0) {
+        if (leftColon && rightColon) {
+          alignments.push('center');
+        } else if (leftColon) {
+          alignments.push('left');
+        } else if (rightColon) {
+          alignments.push('right');
+        } else {
+          alignments.push(null);
+        }
+      }
+
+      if (this.check(TokenType.PIPE)) {
+        this.advance();
+      }
+    }
+
+    if (this.check(TokenType.NEWLINE)) {
+      this.advance();
+    }
+
+    return alignments;
   }
 
   private parseTableRow(): TableRow {
@@ -780,19 +1059,30 @@ export class Parser {
     this.advance(); // consume |
 
     while (!this.isAtEnd() && !this.check(TokenType.NEWLINE)) {
-      // Skip leading space
       if (this.check(TokenType.SPACE)) {
         this.advance();
       }
 
-      // Parse cell content
       const content: Inline[] = [];
       while (!this.isAtEnd() && !this.check(TokenType.PIPE) && !this.check(TokenType.NEWLINE)) {
         const inline = this.parseInline();
         if (inline) content.push(inline);
       }
 
-      cells.push({ type: 'TableCell', children: content });
+      // Trim trailing space from last text node
+      if (content.length > 0) {
+        const last = content[content.length - 1]!;
+        if (last.type === 'Text') {
+          (last as Text).value = (last as Text).value.trimEnd();
+          if ((last as Text).value === '') {
+            content.pop();
+          }
+        }
+      }
+
+      if (content.length > 0) {
+        cells.push({ type: 'TableCell', children: content });
+      }
 
       if (this.check(TokenType.PIPE)) {
         this.advance();
@@ -880,16 +1170,20 @@ export class Parser {
     return false;
   }
 
-  private checkNextIndent(): boolean {
-    const t1 = this.peekNext(1);
-    const t2 = this.peekNext(2);
-    return t1.type === TokenType.SPACE && t2.type === TokenType.SPACE;
-  }
-
   private skipSpaces(): void {
     while (this.check(TokenType.SPACE)) {
       this.advance();
     }
+  }
+
+  private isBlankLine(): boolean {
+    if (this.check(TokenType.NEWLINE)) return true;
+    if (this.check(TokenType.SPACE)) {
+      let i = 0;
+      while (this.position + i < this.tokens.length && this.tokens[this.position + i]!.type === TokenType.SPACE) i++;
+      return this.position + i < this.tokens.length && this.tokens[this.position + i]!.type === TokenType.NEWLINE;
+    }
+    return false;
   }
 
   private expectNewline(): void {
@@ -908,6 +1202,11 @@ export class Parser {
       case 'Image': return '![' + (inline as Image).alt + '](' + (inline as Image).url + ')';
       case 'Escape': return '\\' + (inline as Escape).char;
       case 'LineBreak': return '\n';
+      case 'Shortcode': {
+        const sc = inline as Shortcode;
+        const params = Object.entries(sc.params).map(([k, v]) => ` ${k}="${v}"`).join('');
+        return `[${sc.name}${params}]`;
+      }
       default: return '';
     }
   }

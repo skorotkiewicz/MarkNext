@@ -8,7 +8,8 @@ export { TokenType, type Token, type Position, type TokenWithLiteral } from './t
 export type {
   Node, NodeType, Document, Block, Header, Paragraph, List, ListItem,
   CodeBlock, Blockquote, ThematicBreak, Table, TableRow, TableCell,
-  Inline, Text, Bold, Italic, Code, Link, Image, LineBreak, Escape
+  Inline, Text, Bold, Italic, Code, Link, Image, LineBreak, Escape,
+  Shortcode
 } from './ast';
 
 import { tokenize } from './lexer';
@@ -76,4 +77,4 @@ export async function compileFile(inputPath: string, outputPath?: string, option
 }
 
 // Version
-export const VERSION = '1.0.0';
+export const VERSION = '1.0.2';

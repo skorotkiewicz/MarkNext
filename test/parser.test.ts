@@ -31,6 +31,22 @@ describe("MarkNext Parser", () => {
       const tokens = tokenize("---");
       expect(tokens[0]!.type).toBe(TokenType.THEMATIC_BREAK);
     });
+
+    test("emits GT_SYMBOL for angle-bracket URLs", () => {
+      const tokens = tokenize("[text](<url>)");
+      const gtSymbolIdx = tokens.findIndex(t => t.type === TokenType.GT_SYMBOL);
+      expect(gtSymbolIdx).toBeGreaterThan(-1);
+      const gtIdx = tokens.findIndex(t => t.type === TokenType.GT);
+      expect(gtIdx).toBe(-1);
+    });
+
+    test("emits GT for blockquote, GT_SYMBOL for angle URL", () => {
+      const tokens = tokenize("> quote\n[text](<url>)");
+      const gtCount = tokens.filter(t => t.type === TokenType.GT).length;
+      const gtSymbolCount = tokens.filter(t => t.type === TokenType.GT_SYMBOL).length;
+      expect(gtCount).toBe(1);
+      expect(gtSymbolCount).toBe(1);
+    });
   });
 
   describe("Parser", () => {
@@ -92,6 +108,14 @@ describe("MarkNext Parser", () => {
     test("parses blockquote", () => {
       const ast = parse(tokenize("> quote"));
       expect(ast.children[0]!.type).toBe("Blockquote");
+    });
+
+    test("parses nested blockquote", () => {
+      const ast = parse(tokenize(">> nested quote"));
+      const outer = ast.children[0]!;
+      expect(outer.type).toBe("Blockquote");
+      const inner = (outer as any).children[0]!;
+      expect(inner.type).toBe("Blockquote");
     });
 
     test("parses thematic break", () => {
@@ -264,6 +288,20 @@ describe("MarkNext Parser", () => {
       const ast = parse(tokenize("_text_"));
       expect((ast.children[0]! as any).children[0]!.type).toBe("Text");
     });
+
+    test("/*text*/ produces italic containing bold", () => {
+      const ast = parse(tokenize("/*bold italic*/"));
+      const para = ast.children[0]! as any;
+      expect(para.children[0]!.type).toBe("Italic");
+      expect(para.children[0]!.children[0]!.type).toBe("Bold");
+    });
+
+    test("*/text/* produces bold containing italic", () => {
+      const ast = parse(tokenize("*/bold italic/*"));
+      const para = ast.children[0]! as any;
+      expect(para.children[0]!.type).toBe("Bold");
+      expect(para.children[0]!.children[0]!.type).toBe("Italic");
+    });
   });
 
   describe("Extensions", () => {
@@ -347,8 +385,180 @@ describe("MarkNext Parser", () => {
 | A    | B      | C     |`;
         const html = compileSync(source);
         expect(html).toContain("<table>");
+        expect(html).toContain('text-align: left');
+        expect(html).toContain('text-align: center');
+        expect(html).toContain('text-align: right');
+        expect(html).toContain("<th ");
+        expect(html).toContain("<td ");
+      });
+
+      test("parses table alignments in AST", () => {
+        const source = `| Left | Center | Right |
+|:-----|:------:|------:|
+| A    | B      | C     |`;
+        const result = compile(source, { sourceMap: true });
+        const table = result.ast?.children[0] as any;
+        expect(table.type).toBe("Table");
+        expect(table.alignments).toEqual(["left", "center", "right"]);
+      });
+
+      test("renders table with default (null) alignment", () => {
+        const source = `| A | B |
+|---|---|
+| 1 | 2 |`;
+        const html = compileSync(source);
+        expect(html).toContain("<table>");
         expect(html).toContain("<th>");
         expect(html).toContain("<td>");
+        expect(html).not.toContain("text-align");
+      });
+    });
+
+    describe("Shortcodes", () => {
+      test("parses shortcode with text param", () => {
+        const ast = parse(tokenize('[warning text="This is a warning"]'));
+        const para = ast.children[0]! as any;
+        expect(para.children[0]!.type).toBe("Shortcode");
+        expect(para.children[0]!.name).toBe("warning");
+        expect(para.children[0]!.params.text).toBe("This is a warning");
+      });
+
+      test("parses shortcode with multiple params", () => {
+        const ast = parse(tokenize('[alert type="tip" text="Use MarkNext"]'));
+        const para = ast.children[0]! as any;
+        const sc = para.children[0]!;
+        expect(sc.type).toBe("Shortcode");
+        expect(sc.name).toBe("alert");
+        expect(sc.params.type).toBe("tip");
+        expect(sc.params.text).toBe("Use MarkNext");
+      });
+
+      test("parses shortcode without params", () => {
+        const ast = parse(tokenize('[note]'));
+        const para = ast.children[0]! as any;
+        expect(para.children[0]!.type).toBe("Shortcode");
+        expect(para.children[0]!.name).toBe("note");
+      });
+
+      test("renders shortcode with text param", () => {
+        const html = compileSync('[warning text="Danger!"]');
+        expect(html).toContain('class="shortcode shortcode-warning"');
+        expect(html).toContain('Danger!');
+      });
+
+      test("renders shortcode with extra params as data attributes", () => {
+        const html = compileSync('[alert type="tip" text="Note this"]');
+        expect(html).toContain('data-type="tip"');
+        expect(html).toContain('Note this');
+      });
+
+      test("does not confuse shortcodes with links", () => {
+        const ast = parse(tokenize('[text](url)'));
+        const para = ast.children[0]! as any;
+        expect(para.children[0]!.type).toBe("Link");
+      });
+    });
+
+    describe("Auto-links", () => {
+      test("parses standalone auto-link", () => {
+        const ast = parse(tokenize('<https://example.com>'));
+        const para = ast.children[0]! as any;
+        expect(para.children[0]!.type).toBe("Link");
+        expect(para.children[0]!.url).toBe("https://example.com");
+        expect(para.children[0]!.children[0]!.value).toBe("https://example.com");
+      });
+
+      test("renders standalone auto-link", () => {
+        const html = compileSync('<https://example.com>');
+        expect(html).toContain('href="https://example.com"');
+        expect(html).toContain('https://example.com');
+      });
+
+      test("does not parse non-URL angle brackets as auto-link", () => {
+        const html = compileSync('<script>');
+        expect(html).toContain('&lt;script&gt;');
+        expect(html).not.toContain('<a');
+      });
+
+      test("auto-link with http scheme", () => {
+        const ast = parse(tokenize('<http://example.com>'));
+        const para = ast.children[0]! as any;
+        expect(para.children[0]!.type).toBe("Link");
+        expect(para.children[0]!.url).toBe("http://example.com");
+      });
+
+      test("auto-link with mailto scheme", () => {
+        const ast = parse(tokenize('<mailto:test@example.com>'));
+        const para = ast.children[0]! as any;
+        expect(para.children[0]!.type).toBe("Link");
+        expect(para.children[0]!.url).toBe("mailto:test@example.com");
+      });
+    });
+
+    describe("Code Block Language IDs", () => {
+      test("parses language with dash", () => {
+        const ast = parse(tokenize('```objective-c\ncode\n```'));
+        expect(ast.children[0]!.type).toBe("CodeBlock");
+        expect((ast.children[0]! as any).language).toBe("objective-c");
+      });
+
+      test("parses language with underscore", () => {
+        const ast = parse(tokenize('```f_sharp\ncode\n```'));
+        expect(ast.children[0]!.type).toBe("CodeBlock");
+        expect((ast.children[0]! as any).language).toBe("f_sharp");
+      });
+
+      test("renders language with dash", () => {
+        const html = compileSync('```objective-c\ncode\n```');
+        expect(html).toContain('class="language-objective-c"');
+      });
+    });
+
+    describe("Sublists", () => {
+      test("parses nested unordered list", () => {
+        const source = "- item 1\n  - nested 1\n  - nested 2\n- item 2";
+        const ast = parse(tokenize(source));
+        const list = ast.children[0]! as any;
+        expect(list.type).toBe("List");
+        expect(list.children[0]!.children[0]!.type).toBe("Text");
+        const nestedList = list.children[0]!.children.find((c: any) => c.type === "List");
+        expect(nestedList).toBeDefined();
+        expect(nestedList.ordered).toBe(false);
+        expect(nestedList.children.length).toBe(2);
+      });
+    });
+
+    describe("Escape Validation", () => {
+      test("escapes valid characters", () => {
+        const ast = parse(tokenize('\\*'));
+        const para = ast.children[0]! as any;
+        expect(para.children[0]!.type).toBe("Escape");
+        expect(para.children[0]!.char).toBe("*");
+      });
+
+      test("non-escapable character becomes literal text", () => {
+        const ast = parse(tokenize('\\a'));
+        const para = ast.children[0]! as any;
+        expect(para.children[0]!.type).toBe("Text");
+        expect(para.children[0]!.value).toBe("\\a");
+      });
+
+      test("escapes backslash itself", () => {
+        const ast = parse(tokenize('\\\\'));
+        const para = ast.children[0]! as any;
+        expect(para.children[0]!.type).toBe("Escape");
+        expect(para.children[0]!.char).toBe("\\");
+      });
+
+      test("escapes hash", () => {
+        const html = compileSync('\\#');
+        expect(html).toContain('#');
+        expect(html).not.toContain('<h');
+      });
+
+      test("renders non-escapable as literal", () => {
+        const html = compileSync('\\x');
+        expect(html).toContain('\\x');
       });
     });
   });

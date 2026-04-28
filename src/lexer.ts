@@ -1,4 +1,4 @@
-import { TokenType, isCodeFence, isThematicBreak } from './tokens';
+import { TokenType } from './tokens';
 import type { Token, Position } from './tokens';
 
 export class Lexer {
@@ -7,6 +7,7 @@ export class Lexer {
   private line: number = 1;
   private column: number = 1;
   private tokens: Token[] = [];
+  private inAngleUrl: boolean = false;
 
   constructor(input: string) {
     this.input = input;
@@ -14,11 +15,6 @@ export class Lexer {
 
   tokenize(): Token[] {
     while (!this.isAtEnd()) {
-      // Skip spaces and tabs at line start only
-      if (this.column === 1) {
-        this.skipWhitespace();
-      }
-
       if (this.isAtEnd()) break;
 
       const char = this.peek();
@@ -42,6 +38,7 @@ export class Lexer {
         case '\n':
         case '\r':
           this.readNewline();
+          this.inAngleUrl = false;
           this.addToken(TokenType.NEWLINE, '\n', startPos);
           continue;
 
@@ -107,7 +104,12 @@ export class Lexer {
 
         case '>':
           this.advance();
-          this.addToken(TokenType.GT, '>', startPos);
+          if (this.inAngleUrl) {
+            this.addToken(TokenType.GT_SYMBOL, '>', startPos);
+            this.inAngleUrl = false;
+          } else {
+            this.addToken(TokenType.GT, '>', startPos);
+          }
           continue;
 
         case '|':
@@ -127,6 +129,7 @@ export class Lexer {
 
         case '<':
           this.advance();
+          this.inAngleUrl = true;
           this.addToken(TokenType.LT, '<', startPos);
           continue;
 
@@ -149,12 +152,12 @@ export class Lexer {
           this.advance();
           this.addToken(TokenType.DQUOTE, '"', startPos);
           continue;
-        
+
         case '^':
           this.advance();
           this.addToken(TokenType.CARET, '^', startPos);
           continue;
-        
+
         case '$':
           this.advance();
           this.addToken(TokenType.DOLLAR, '$', startPos);

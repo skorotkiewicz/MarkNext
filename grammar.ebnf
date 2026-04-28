@@ -33,6 +33,11 @@ period       = ".";
 lt           = "<";
 gt           = ">";
 underscore   = "_";
+colon        = ":";
+equals       = "=";
+dquote       = '"';
+caret        = "^";
+dollar       = "$";
 
 (* ========== DOCUMENT STRUCTURE ========== *)
 
@@ -46,7 +51,9 @@ block        = header
              | code_block
              | blockquote
              | thematic_break
-             | table;
+             | table
+             | footnote_definition
+             | math_block;
 
 (* ========== HEADERS ========== *)
 
@@ -78,9 +85,13 @@ inline_element = text_span
                | italic
                | code_inline
                | link
+               | auto_link
                | image
                | line_break
-               | escaped_char;
+               | escaped_char
+               | footnote
+               | shortcode
+               | math;
 
 (* ========== EMPHASIS ========== *)
 
@@ -181,7 +192,8 @@ escapable    = backslash | star | slash | backtick
              | open_bracket | close_bracket 
              | open_paren | close_paren 
              | exclaim | hash | dash 
-             | greater | pipe | lt | gt;
+             | greater | pipe | lt | gt
+             | dquote | colon | equals | caret | dollar;
 
 (* ========== LINE BREAKS ========== *)
 
@@ -197,6 +209,31 @@ shortcode_name= letter, { letter | digit | dash };
 shortcode_param= param_name, equals, param_value;
 param_name   = letter, { letter | digit | dash };
 param_value  = dquote, { any_char - dquote - newline }, dquote;
+
+(* ========== AUTO-LINKS (EXTENSION) ========== *)
+
+auto_link    = lt, link_url, gt;
+
+(* ========== FOOTNOTES (EXTENSION) ========== *)
+
+footnote     = open_bracket, caret, footnote_id, close_bracket;
+footnote_id  = letter | digit, { letter | digit };
+
+footnote_definition = open_bracket, caret, footnote_id, close_bracket,
+                      colon, [ space ], inline_content, newline,
+                      { newline, indent, inline_content },
+                      { blank_line };
+
+(* ========== MATH (EXTENSION) ========== *)
+
+math         = dollar, math_content, dollar
+             | dollar, dollar, math_content, dollar, dollar;
+math_content = { any_char - dollar - newline };
+
+math_block   = dollar, dollar, newline,
+               { any_char },
+               dollar, dollar, newline,
+               { blank_line };
 
 (* ========== WHITESPACE HANDLING ========== *)
 

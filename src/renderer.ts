@@ -2,7 +2,7 @@ import type {
   Node, Document, Block, Header, Paragraph, List, ListItem,
   CodeBlock, Blockquote, ThematicBreak, Table, TableRow, TableCell,
   Inline, Text, Bold, Italic, Code, Link, Image, LineBreak, Escape,
-  Footnote, FootnoteDefinition, Math, MathBlock
+  Footnote, FootnoteDefinition, Math, MathBlock, Shortcode
 } from './ast';
 
 export interface RenderOptions {
@@ -70,6 +70,8 @@ export class HTMLRenderer {
         return this.renderLineBreak();
       case 'Escape':
         return this.renderEscape(node as Escape);
+      case 'Shortcode':
+        return this.renderShortcode(node as Shortcode);
       default:
         return '';
     }
@@ -79,7 +81,7 @@ export class HTMLRenderer {
     // Separate footnote definitions from other blocks
     const blocks: Block[] = [];
     const footnotes: FootnoteDefinition[] = [];
-    
+
     for (const child of doc.children) {
       if (child.type === 'FootnoteDefinition') {
         footnotes.push(child as FootnoteDefinition);
@@ -87,15 +89,15 @@ export class HTMLRenderer {
         blocks.push(child);
       }
     }
-    
+
     let html = blocks.map(child => this.render(child)).join('');
-    
+
     // Render footnotes section if there are any
     if (footnotes.length > 0) {
       const footnotesHtml = footnotes.map(fn => this.renderFootnoteDefinition(fn)).join('');
       html += this.wrap('section', footnotesHtml, ' class="footnotes"');
     }
-    
+
     return this.options.pretty ? this.prettyPrint(html) : html;
   }
 
@@ -145,27 +147,31 @@ export class HTMLRenderer {
   }
 
   private renderTable(table: Table): string {
-    const header = this.renderTableHeader(table.header);
-    const body = table.rows.map(row => this.render(row)).join('');
+    const alignments = table.alignments;
+    const header = this.renderTableHeader(table.header, alignments);
+    const body = table.rows.map((row, rowIdx) => this.renderTableRow(row, alignments, rowIdx)).join('');
     return this.wrap('table', header + this.wrap('tbody', body));
   }
 
-  private renderTableHeader(row: TableRow): string {
-    const cells = row.cells.map(cell => {
+  private renderTableHeader(row: TableRow, alignments?: ('left' | 'center' | 'right' | null)[]): string {
+    const cells = row.cells.map((cell, idx) => {
       const content = cell.children.map(child => this.renderInline(child)).join('');
-      return this.wrap('th', content);
+      const align = alignments?.[idx];
+      const attrs = align ? ` style="text-align: ${align}"` : '';
+      return this.wrap('th', content, attrs);
     }).join('');
     return this.wrap('thead', this.wrap('tr', cells));
   }
 
-  private renderTableRow(row: TableRow): string {
-    const cells = row.cells.map(cell => this.render(cell)).join('');
+  private renderTableRow(row: TableRow, alignments?: ('left' | 'center' | 'right' | null)[], _rowIdx?: number): string {
+    const cells = row.cells.map((cell, idx) => this.renderTableCell(cell, alignments?.[idx])).join('');
     return this.wrap('tr', cells);
   }
 
-  private renderTableCell(cell: TableCell): string {
+  private renderTableCell(cell: TableCell, align?: 'left' | 'center' | 'right' | null): string {
     const content = cell.children.map(child => this.renderInline(child)).join('');
-    return this.wrap('td', content);
+    const attrs = align ? ` style="text-align: ${align}"` : '';
+    return this.wrap('td', content, attrs);
   }
 
   private renderFootnote(footnote: Footnote): string {
@@ -243,6 +249,17 @@ export class HTMLRenderer {
 
   private renderEscape(escape: Escape): string {
     return this.escapeHtml(escape.char);
+  }
+
+  private renderShortcode(shortcode: Shortcode): string {
+    const name = this.escapeHtml(shortcode.name);
+    const dataAttrs = Object.entries(shortcode.params)
+      .filter(([k]) => k !== 'text')
+      .map(([k, v]) => `data-${this.escapeHtml(k)}="${this.escapeHtml(v)}"`)
+      .join(' ');
+    const textContent = shortcode.params['text'] || '';
+    const attrs = dataAttrs ? ' ' + dataAttrs : '';
+    return `<span class="shortcode shortcode-${name}"${attrs}>${this.escapeHtml(textContent)}</span>`;
   }
 
   // Utility methods
