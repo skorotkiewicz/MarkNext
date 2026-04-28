@@ -9,30 +9,33 @@
 (atx_h4_marker) @markup.heading.marker
 (atx_h5_marker) @markup.heading.marker
 (atx_h6_marker) @markup.heading.marker
+(setext_heading) @markup.heading
+(setext_h1_underline) @markup.heading.marker
+(setext_h2_underline) @markup.heading.marker
 
 ;; Bold - *text*
-(strong) @markup.bold
+(strong) @markup.strong
 
 ;; Italic - /text/
 (emphasis) @markup.italic
 
 ;; Code inline - `code`
-(code_span) @markup.inline.raw
+(code_span) @markup.raw.inline
 
 ;; Code block - ```
 (fenced_code_block) @markup.raw.block
 (info_string) @tag.attribute
-(code_fence_content) @markup.raw.block.content
+(code_fence_content) @markup.raw.block
 
 ;; Links - [text](url)
 (link) @markup.link
-(link_text) @markup.link.text
+(link_text) @markup.link.label
 (link_destination) @markup.link.url
 
 ;; Images - ![alt](url)
-(image) @markup.image
-(image_description) @markup.image.alt
-(image_destination) @markup.image.url
+(image) @markup.link.image
+(image_description) @markup.link.label
+(image_destination) @markup.link.url
 
 ;; Blockquotes - >
 (block_quote) @markup.quote
@@ -40,9 +43,10 @@
 ;; Lists
 (list) @markup.list
 (list_item) @markup.list.item
-(bullet_list_marker) @markup.list.bullet
-(task_list_marker) @markup.list.checkbox
-(task_list_marker_checked) @markup.list.checkbox.checked
+(bullet_list_marker) @markup.list.unnumbered
+(ordered_list_marker) @markup.list.numbered
+(task_list_marker) @markup.list.check
+(task_list_marker_checked) @markup.list.check
 
 ;; Tables
 (table) @markup.table
@@ -61,8 +65,8 @@
 
 ;; Math
 (math) @markup.math
-(math_inline) @markup.math.inline
-(math_block) @markup.math.block
+(inline_math) @markup.math
+(display_math) @markup.math
 
 ;; Shortcodes - [tag attr="value"]
 (shortcode) @tag
@@ -71,7 +75,7 @@
 (shortcode_value) @string
 
 ;; Escape sequences
-(escape_sequence) @character.escape
+(escape_sequence) @string.escape
 
 ;; Auto-links - <https://...>
 (auto_link) @markup.link.url
@@ -91,10 +95,12 @@
 "*" @punctuation.special
 "/" @punctuation.special
 "|" @punctuation.delimiter
-"-" @punctuation.bullet
-">" @punctuation.quote
+"-" @punctuation.list_marker
+">" @punctuation.special
 "^" @punctuation.special
 "$" @punctuation.special
+"!" @punctuation.special
+"#" @punctuation.special
 
 ;; Comments
 (comment) @comment

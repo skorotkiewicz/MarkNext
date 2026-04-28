@@ -1,0 +1,16 @@
+id = "marknext"
+name = "MarkNext"
+version = "1.0.0"
+schema_version = 1
+authors = ["Sebastian Korotkiewicz"]
+description = "MarkNext language support for Zed - a minimal, unambiguous, and secure Markdown successor"
+repository = "https://github.com/skorotkiewicz/marknext"
+
+# NOTE: A dedicated tree-sitter-marknext grammar should be created at:
+# https://github.com/skorotkiewicz/tree-sitter-marknext
+# Until then, this extension can be tested as a "dev extension" in Zed
+# which loads the queries without fetching a grammar.
+# For publishing, create the grammar repo and update this section.
+# [grammars.marknext]
+# repository = "https://github.com/skorotkiewicz/tree-sitter-marknext"
+# rev = "v1.0.0"

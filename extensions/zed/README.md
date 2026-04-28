@@ -1,6 +1,6 @@
 # MarkNext for Zed
 
-Syntax highlighting for MarkNext in Zed editor.
+Syntax highlighting and language support for MarkNext in the Zed editor.
 
 ## Features
 
@@ -8,19 +8,67 @@ Syntax highlighting for MarkNext in Zed editor.
 - Bracket auto-closing for `[]`, `()`, ```` ``` ````, `` ` ``, `*`, `/`, `[^`, `$$`
 - Support for `.mnext` and `.mn` file extensions
 - Footnotes and math expression highlighting
+- Code block language injection
+- Document outline (headings)
+- Vim text objects support
 
-## Installation
+## Directory Structure
 
-1. Copy this folder to Zed's extensions directory:
+```
+marknext/
+  extension.toml           # Extension manifest
+  languages/
+    marknext/
+      config.toml          # Language configuration
+      highlights.scm       # Syntax highlighting queries
+      brackets.scm         # Bracket matching
+      injections.scm       # Code block language injection
+      indents.scm          # Indentation rules
+      outline.scm          # Document outline
+      textobjects.scm      # Vim text objects
+```
+
+## Installation (Development)
+
+1. Clone this repository:
    ```bash
-   # macOS
-   cp -r extensions/zed ~/Library/Application\ Support/Zed/extensions/marknext
-   
-   # Linux
-   cp -r extensions/zed ~/.config/zed/extensions/marknext
+   git clone https://github.com/skorotkiewicz/marknext.git
    ```
 
-2. Restart Zed
+2. Install as a dev extension in Zed:
+   - Open Zed
+   - Go to Extensions page
+   - Click "Install Dev Extension"
+   - Select the `extensions/zed` directory
+
+3. Restart Zed
+
+## Installation (Published - Coming Soon)
+
+Once published to the Zed extension registry:
+
+1. Open Zed
+2. Go to Extensions page
+3. Search for "MarkNext"
+4. Click Install
+
+## Publishing
+
+To publish this extension to the Zed registry:
+
+1. Fork [zed-industries/extensions](https://github.com/zed-industries/extensions)
+2. Add this repo as a submodule:
+   ```bash
+   git submodule add https://github.com/skorotkiewicz/marknext.git extensions/marknext
+   ```
+3. Add entry to `extensions.toml`:
+   ```toml
+   [marknext]
+   submodule = "extensions/marknext"
+   version = "1.0.0"
+   path = "extensions/zed"
+   ```
+4. Open a PR
 
 ## Supported Syntax
 
@@ -53,6 +101,20 @@ Syntax highlighting for MarkNext in Zed editor.
 - Tables: `| col1 | col2 |`
 - Shortcodes: `[tag attr="value"]`
 
+## Extension Manifest
+
+This extension follows the Zed extension format with an `extension.toml` manifest:
+
+```toml
+id = "marknext"
+name = "MarkNext"
+version = "1.0.0"
+schema_version = 1
+authors = ["Sebastian Korotkiewicz"]
+description = "MarkNext language support for Zed"
+repository = "https://github.com/skorotkiewicz/marknext"
+```
+
 ## Release Notes
 
 ### 1.0.0
@@ -60,3 +122,6 @@ Syntax highlighting for MarkNext in Zed editor.
 - Initial release
 - Full MarkNext syntax highlighting
 - Bracket auto-closing
+- Code injection support
+- Document outline
+- Vim text objects

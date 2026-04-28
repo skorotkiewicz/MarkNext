@@ -1,18 +1,16 @@
 name = "MarkNext"
-version = "1.0.0"
-authors = ["Sebastian Korotkiewicz"]
-description = "Syntax highlighting for MarkNext - a minimal, unambiguous, and secure Markdown successor"
-repository = "https://github.com/skorotkiewicz/marknext"
-
-[language_servers]
-marknext = { name = "MarkNext Language Server", language = "MarkNext" }
-
-[[languages]]
-name = "MarkNext"
 grammar = "marknext"
 path_suffixes = ["mnext", "mn"]
-line_comments = ["% "]
+line_comments = ["% ", "# "]
+tab_size = 2
+hard_tabs = false
+
+[brackets]
+open = ["[", "(", "{", "```", "`", "*", "/", "[^", "$$", "$"]
+close = ["]", ")", "}", "```", "`", "*", "/", "]", "$$", "$"]
+
 autoclose_before = "`'
+
 brackets = [
     { start = "[", end = "]", close = true, newline = false },
     { start = "(", end = ")", close = true, newline = false },
