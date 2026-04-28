@@ -98,6 +98,35 @@ Line two (forced break)
 [math latex="E=mc^2"]
 ```
 
+## Extensions
+
+### Footnotes
+```markdown
+Text with footnote[^1].
+
+[^1]: This is the footnote content.
+```
+
+### Math
+```markdown
+Inline: $E = mc^2$
+
+Block:
+$$
+\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
+$$
+```
+
+## CLI Usage
+
+```bash
+marknext doc.mnext                    # Compile to HTML
+marknext doc.mnext -o dist/           # Output to directory
+marknext doc.mnext -s                 # Standalone HTML document
+marknext doc.mnext -w                 # Watch mode
+marknext doc.mnext -f json            # Output AST as JSON
+```
+
 ---
 
 ## What MarkNext Removed

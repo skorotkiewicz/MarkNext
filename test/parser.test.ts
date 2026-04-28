@@ -265,4 +265,91 @@ describe("MarkNext Parser", () => {
       expect((ast.children[0]! as any).children[0]!.type).toBe("Text");
     });
   });
+
+  describe("Extensions", () => {
+    describe("Footnotes", () => {
+      test("parses footnote reference", () => {
+        const ast = parse(tokenize("Text[^1] more"));
+        const para = ast.children[0]! as any;
+        expect(para.children[1]!.type).toBe("Footnote");
+        expect(para.children[1]!.id).toBe("1");
+      });
+
+      test("parses footnote definition", () => {
+        const ast = parse(tokenize("[^1]: This is a footnote"));
+        expect(ast.children[0]!.type).toBe("FootnoteDefinition");
+        expect((ast.children[0]! as any).id).toBe("1");
+      });
+
+      test("renders footnote reference", () => {
+        const html = compileSync("Text[^1]");
+        expect(html).toContain('class="footnote-ref"');
+        expect(html).toContain('href="#fn-1"');
+      });
+
+      test("renders footnote definition", () => {
+        const source = `Text[^1]
+
+[^1]: This is a footnote`;
+        const html = compileSync(source);
+        expect(html).toContain('class="footnotes"');
+        expect(html).toContain('id="fn-1"');
+      });
+
+      test("renders footnote backlink with HTML entity", () => {
+        const source = `Text[^1]
+
+[^1]: This is a footnote`;
+        const html = compileSync(source);
+        expect(html).toContain('&#8592;'); // HTML entity for back arrow
+        expect(html).toContain('href="#fnref-1"');
+      });
+    });
+
+    describe("Math", () => {
+      test("parses inline math", () => {
+        const ast = parse(tokenize("$E=mc^2$"));
+        const para = ast.children[0]! as any;
+        expect(para.children[0]!.type).toBe("Math");
+        expect(para.children[0]!.display).toBe(false);
+        expect(para.children[0]!.content).toBe("E=mc^2");
+      });
+
+      test("parses display math as block when at line start", () => {
+        const ast = parse(tokenize("$$E=mc^2$$"));
+        // When $$ is at the start of a line, it's parsed as MathBlock
+        expect(ast.children[0]!.type).toBe("MathBlock");
+        expect((ast.children[0]! as any).content).toBe("E=mc^2");
+      });
+
+      test("parses math block", () => {
+        const ast = parse(tokenize("$$\nE=mc^2\n$$"));
+        expect(ast.children[0]!.type).toBe("MathBlock");
+        expect((ast.children[0]! as any).content).toBe("E=mc^2");
+      });
+
+      test("renders inline math", () => {
+        const html = compileSync("$x^2$");
+        expect(html).toContain('class="math inline"');
+        expect(html).toContain('data-latex="x^2"');
+      });
+
+      test("renders math block", () => {
+        const html = compileSync("$$\nx^2\n$$");
+        expect(html).toContain('class="math block"');
+      });
+    });
+
+    describe("Enhanced Tables", () => {
+      test("renders table with alignment", () => {
+        const source = `| Left | Center | Right |
+|:-----|:------:|------:|
+| A    | B      | C     |`;
+        const html = compileSync(source);
+        expect(html).toContain("<table>");
+        expect(html).toContain("<th>");
+        expect(html).toContain("<td>");
+      });
+    });
+  });
 });

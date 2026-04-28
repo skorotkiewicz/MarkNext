@@ -3,7 +3,8 @@ import type { Token } from './tokens';
 import type {
   Node, Document, Block, Header, Paragraph, List, ListItem,
   CodeBlock, Blockquote, ThematicBreak, Table, TableRow, TableCell,
-  Inline, Text, Bold, Italic, Code, Link, Image, LineBreak, Escape
+  Inline, Text, Bold, Italic, Code, Link, Image, LineBreak, Escape,
+  Footnote, FootnoteDefinition, Math, MathBlock
 } from './ast';
 
 interface ParseError {
@@ -117,6 +118,17 @@ export class Parser {
     // Table | (at start of line with proper structure)
     if (token.type === TokenType.PIPE && this.checkTable()) {
       return this.parseTable();
+    }
+
+    // Math block $$ (at start of line, needs to be on its own line)
+    if (token.type === TokenType.DOLLAR && this.peekNext(1).type === TokenType.DOLLAR) {
+      return this.parseMathBlock();
+    }
+
+    // Footnote definition [^id]:
+    if (token.type === TokenType.LBRACKET &&
+        this.peekNext(1).type === TokenType.CARET) {
+      return this.parseFootnoteDefinition();
     }
 
     // Default: paragraph
@@ -356,6 +368,11 @@ export class Parser {
       return this.parseImage();
     }
 
+    // Footnote: [^id] - check before link since link is more generic
+    if (token.type === TokenType.LBRACKET && this.peekNext(1).type === TokenType.CARET) {
+      return this.parseFootnote();
+    }
+
     // Link: [text](url)
     if (token.type === TokenType.LBRACKET) {
       return this.parseLink();
@@ -371,6 +388,11 @@ export class Parser {
       }
       // Otherwise it's an escape
       return this.parseEscape();
+    }
+
+    // Math inline: $...$ or $$...$$
+    if (token.type === TokenType.DOLLAR) {
+      return this.parseMath();
     }
 
     // Text content (including < and > which are text in most contexts)
@@ -587,6 +609,142 @@ export class Parser {
     return { type: 'Escape', char };
   }
 
+  private parseFootnote(): Footnote | Text {
+    this.advance(); // consume [
+    this.advance(); // consume ^
+
+    let id = '';
+    while (!this.isAtEnd() && !this.check(TokenType.RBRACKET) && !this.check(TokenType.NEWLINE)) {
+      id += this.advance().value;
+    }
+
+    if (!this.check(TokenType.RBRACKET)) {
+      return { type: 'Text', value: '[^' + id };
+    }
+    this.advance(); // consume ]
+
+    return { type: 'Footnote', id: id.trim() };
+  }
+
+  private parseMath(): Math | Text {
+    this.advance(); // consume first $
+
+    let display = false;
+    if (this.check(TokenType.DOLLAR)) {
+      this.advance(); // consume second $ for $$
+      display = true;
+    }
+
+    let content = '';
+
+    while (!this.isAtEnd()) {
+      if (this.check(TokenType.DOLLAR)) {
+        if (display) {
+          // Check for $$
+          if (this.peekNext(1).type === TokenType.DOLLAR) {
+            this.advance(); this.advance(); // consume $$
+            return { type: 'Math', content: content.trim(), display };
+          }
+        } else {
+          // Single $
+          this.advance(); // consume $
+          return { type: 'Math', content: content.trim(), display };
+        }
+      }
+      content += this.advance().value;
+    }
+
+    // Unclosed math - treat as text
+    const prefix = display ? '$$' : '$';
+    return { type: 'Text', value: prefix + content };
+  }
+
+  private parseMathBlock(): MathBlock | null {
+    this.advance(); this.advance(); // consume $$
+
+    let content = '';
+    while (!this.isAtEnd()) {
+      if (this.check(TokenType.DOLLAR) && this.peekNext(1).type === TokenType.DOLLAR) {
+        this.advance(); this.advance(); // consume $$
+        return { type: 'MathBlock', content: content.trim() };
+      }
+      if (this.check(TokenType.NEWLINE)) {
+        content += '\n';
+        this.advance();
+      } else {
+        content += this.advance().value;
+      }
+    }
+
+    // Unclosed math block - return null to let paragraph handle it
+    return null;
+  }
+
+  private parseFootnoteDefinition(): FootnoteDefinition | null {
+    this.advance(); // consume [
+    this.advance(); // consume ^
+
+    let id = '';
+    while (!this.isAtEnd() && !this.check(TokenType.RBRACKET) && !this.check(TokenType.NEWLINE)) {
+      id += this.advance().value;
+    }
+
+    if (!this.check(TokenType.RBRACKET)) {
+      // Not a valid footnote def, backtrack and let paragraph handle it
+      return null;
+    }
+    this.advance(); // consume ]
+
+    if (!this.check(TokenType.COLON)) {
+      return null;
+    }
+    this.advance(); // consume :
+
+    if (this.check(TokenType.SPACE)) {
+      this.advance();
+    }
+
+    // Parse footnote content (rest of the line + continuation)
+    const children: Block[] = [];
+    const paraChildren: Inline[] = [];
+
+    // First line content
+    while (!this.isAtEnd() && !this.check(TokenType.NEWLINE)) {
+      const inline = this.parseInline();
+      if (inline) paraChildren.push(inline);
+    }
+
+    if (paraChildren.length > 0) {
+      children.push({ type: 'Paragraph', children: paraChildren });
+    }
+
+    // Consume newline
+    if (this.check(TokenType.NEWLINE)) {
+      this.advance();
+    }
+
+    // Check for indented continuation lines
+    while (this.check(TokenType.SPACE) && this.peekNext(1).type === TokenType.SPACE) {
+      this.advance(); this.advance(); // consume indent
+
+      const contChildren: Inline[] = [];
+      while (!this.isAtEnd() && !this.check(TokenType.NEWLINE)) {
+        const inline = this.parseInline();
+        if (inline) contChildren.push(inline);
+      }
+
+      if (contChildren.length > 0) {
+        children.push({ type: 'Paragraph', children: contChildren });
+      }
+
+      if (this.check(TokenType.NEWLINE)) {
+        this.advance();
+      }
+    }
+
+    return { type: 'FootnoteDefinition', id: id.trim(), children };
+  }
+
   private parseTable(): Table {
     // Simple table parsing - can be expanded
     const rows: TableRow[] = [];
@@ -668,6 +826,18 @@ export class Parser {
 
   private isBlockStart(): boolean {
     const t = this.peek();
+    const t2 = this.peekNext(1);
+
+    // Footnote definition: [^
+    if (t.type === TokenType.LBRACKET && t2.type === TokenType.CARET) {
+      return true;
+    }
+
+    // Math block: $$
+    if (t.type === TokenType.DOLLAR && t2.type === TokenType.DOLLAR) {
+      return true;
+    }
+
     return [
       TokenType.HASH,        // Header
       TokenType.DASH,        // List or hr

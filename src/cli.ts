@@ -13,6 +13,7 @@ interface CLIOptions extends CompileOptions {
   format: 'html' | 'json';
   quiet: boolean;
   recursive: boolean;
+  standalone?: boolean;
 }
 
 function showHelp(): void {
@@ -32,6 +33,7 @@ Options:
   -r, --recursive      Process directories recursively
   -p, --pretty         Pretty-print HTML output
   -q, --quiet          Suppress non-error output
+  -s, --standalone     Wrap output in standalone HTML document
   -h, --help           Show this help message
   -v, --version        Show version number
 
@@ -108,6 +110,11 @@ function parseArgs(args: string[]): { options: CLIOptions; input: string | null 
       case '--quiet':
         options.quiet = true;
         break;
+      
+      case '-s':
+      case '--standalone':
+        options.standalone = true;
+        break;
 
       default:
         if (arg && !arg.startsWith('-')) {
@@ -173,6 +180,94 @@ function compileFile(inputPath: string, options: CLIOptions): boolean {
       output = JSON.stringify(result.ast, null, 2);
     } else {
       output = result.html;
+      
+      // Wrap in standalone HTML document if requested
+      if (options.standalone) {
+        output = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${basename(inputPath, extname(inputPath))}</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      line-height: 1.6;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+      color: #333;
+      background: #fff;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      color: #222;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 0.3em;
+    }
+    code {
+      background: #f4f4f4;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'SF Mono', Monaco, Inconsolata, 'Fira Code', monospace;
+    }
+    pre {
+      background: #f4f4f4;
+      padding: 16px;
+      border-radius: 6px;
+      overflow-x: auto;
+    }
+    pre code {
+      background: none;
+      padding: 0;
+    }
+    blockquote {
+      border-left: 4px solid #ddd;
+      margin: 0;
+      padding-left: 16px;
+      color: #666;
+    }
+    a {
+      color: #0066cc;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px 12px;
+      text-align: left;
+    }
+    th {
+      background: #f8f8f8;
+    }
+    .footnotes {
+      margin-top: 2em;
+      padding-top: 1em;
+      border-top: 1px solid #ddd;
+    }
+    .footnote {
+      font-size: 0.9em;
+      margin-bottom: 0.5em;
+    }
+    .footnote-ref {
+      font-size: 0.8em;
+      vertical-align: super;
+    }
+    .math {
+      font-family: 'Latin Modern Math', 'STIX Two Math', serif;
+    }
+    .math.block {
+      text-align: center;
+      margin: 1em 0;
+    }
+  </style>
+</head>
+<body>
+${output}
+</body>
+</html>`;
+      }
     }
 
     // Determine output path

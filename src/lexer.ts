@@ -149,6 +149,16 @@ export class Lexer {
           this.advance();
           this.addToken(TokenType.DQUOTE, '"', startPos);
           continue;
+        
+        case '^':
+          this.advance();
+          this.addToken(TokenType.CARET, '^', startPos);
+          continue;
+        
+        case '$':
+          this.advance();
+          this.addToken(TokenType.DOLLAR, '$', startPos);
+          continue;
       }
 
       // Read text content
@@ -242,7 +252,7 @@ export class Lexer {
     let result = '';
     const specialChars = new Set([
       '\n', '\r', ' ', '\t', '#', '-', '*', '/', '`', '[', ']',
-      '(', ')', '!', '>', '|', '\\', '.', '<', '_', ':', '=', '"'
+      '(', ')', '!', '>', '|', '\\', '.', '<', '_', ':', '=', '"', '^', '$'
     ]);
 
     while (!this.isAtEnd() && !specialChars.has(this.peek())) {

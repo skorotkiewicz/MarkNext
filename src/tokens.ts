@@ -38,6 +38,8 @@ export enum TokenType {
   COLON = 'COLON',         // :
   EQUALS = 'EQUALS',       // =
   DQUOTE = 'DQUOTE',       // "
+  CARET = 'CARET',         // ^
+  DOLLAR = 'DOLLAR',       // $
 
   // Content
   TEXT = 'TEXT',           // Any text content

@@ -1,7 +1,8 @@
 import type {
   Node, Document, Block, Header, Paragraph, List, ListItem,
   CodeBlock, Blockquote, ThematicBreak, Table, TableRow, TableCell,
-  Inline, Text, Bold, Italic, Code, Link, Image, LineBreak, Escape
+  Inline, Text, Bold, Italic, Code, Link, Image, LineBreak, Escape,
+  Footnote, FootnoteDefinition, Math, MathBlock
 } from './ast';
 
 export interface RenderOptions {
@@ -45,6 +46,14 @@ export class HTMLRenderer {
         return this.renderTableRow(node as TableRow);
       case 'TableCell':
         return this.renderTableCell(node as TableCell);
+      case 'Footnote':
+        return this.renderFootnote(node as Footnote);
+      case 'FootnoteDefinition':
+        return this.renderFootnoteDefinition(node as FootnoteDefinition);
+      case 'Math':
+        return this.renderMath(node as Math);
+      case 'MathBlock':
+        return this.renderMathBlock(node as MathBlock);
       case 'Text':
         return this.renderText(node as Text);
       case 'Bold':
@@ -67,8 +76,27 @@ export class HTMLRenderer {
   }
 
   private renderDocument(doc: Document): string {
-    const children = doc.children.map(child => this.render(child)).join('');
-    return this.options.pretty ? this.prettyPrint(children) : children;
+    // Separate footnote definitions from other blocks
+    const blocks: Block[] = [];
+    const footnotes: FootnoteDefinition[] = [];
+    
+    for (const child of doc.children) {
+      if (child.type === 'FootnoteDefinition') {
+        footnotes.push(child as FootnoteDefinition);
+      } else {
+        blocks.push(child);
+      }
+    }
+    
+    let html = blocks.map(child => this.render(child)).join('');
+    
+    // Render footnotes section if there are any
+    if (footnotes.length > 0) {
+      const footnotesHtml = footnotes.map(fn => this.renderFootnoteDefinition(fn)).join('');
+      html += this.wrap('section', footnotesHtml, ' class="footnotes"');
+    }
+    
+    return this.options.pretty ? this.prettyPrint(html) : html;
   }
 
   private renderHeader(header: Header): string {
@@ -138,6 +166,33 @@ export class HTMLRenderer {
   private renderTableCell(cell: TableCell): string {
     const content = cell.children.map(child => this.renderInline(child)).join('');
     return this.wrap('td', content);
+  }
+
+  private renderFootnote(footnote: Footnote): string {
+    const id = this.escapeHtml(footnote.id);
+    return `<sup class="footnote-ref"><a href="#fn-${id}" id="fnref-${id}">${id}</a></sup>`;
+  }
+
+  private renderFootnoteDefinition(defn: FootnoteDefinition): string {
+    const id = this.escapeHtml(defn.id);
+    const content = defn.children.map(child => this.render(child)).join('');
+    // Use HTML entity for back arrow to ensure proper encoding
+    return `<div class="footnote" id="fn-${id}"><sup>${id}</sup> ${content} <a href="#fnref-${id}">&#8592;</a></div>`;
+  }
+
+  private renderMath(math: Math): string {
+    // Use MathML or KaTeX-compatible format
+    // For now, use semantic HTML with data attribute
+    const escaped = this.escapeHtml(math.content);
+    if (math.display) {
+      return `<span class="math display" data-latex="${escaped}">${escaped}</span>`;
+    }
+    return `<span class="math inline" data-latex="${escaped}">${escaped}</span>`;
+  }
+
+  private renderMathBlock(math: MathBlock): string {
+    const escaped = this.escapeHtml(math.content);
+    return `<div class="math block" data-latex="${escaped}">${escaped}</div>`;
   }
 
   private renderInline(inline: Inline): string {
