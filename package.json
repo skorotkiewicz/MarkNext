@@ -6,6 +6,9 @@
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
   "type": "module",
+  "bin": {
+    "marknext": "./dist/cli.mjs"
+  },
   "exports": {
     ".": {
       "import": {
@@ -26,15 +29,16 @@
     "README.md"
   ],
   "scripts": {
-    "build": "bun run build:clean && bun run build:esm && bun run build:cjs && bun run build:types",
+    "build": "bun run build:clean && bun run build:lib && bun run build:cli && bun run build:types",
     "build:clean": "rm -rf dist && mkdir -p dist",
+    "build:lib": "bun run build:esm && bun run build:cjs",
     "build:esm": "bun build ./src/index.ts --outfile ./dist/index.mjs --format esm --target node",
     "build:cjs": "bun build ./src/index.ts --outfile ./dist/index.js --format cjs --target node",
+    "build:cli": "bun build ./src/cli.ts --outfile ./dist/cli.mjs --format esm --target node --shebang",
     "build:types": "tsc --declaration --emitDeclarationOnly",
     "test": "bun test",
     "test:watch": "bun test --watch",
     "dev": "bun run index.ts",
-    "compile": "bun run src/index.ts",
     "lint": "tsc --noEmit --skipLibCheck",
     "clean": "rm -rf dist"
   },
@@ -49,7 +53,8 @@
     "commonmark",
     "context-free-grammar",
     "secure",
-    "xss-protection"
+    "xss-protection",
+    "cli"
   ],
   "author": "Sebastian Korotkiewicz",
   "license": "MIT",
